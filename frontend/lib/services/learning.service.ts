@@ -125,6 +125,34 @@ export type HistoryEntry = {
   content_version: string;
 };
 export type LearningHistory = { profile: Profile; items: HistoryEntry[]; total: number };
+export type TopicBehavioralSummary = {
+  concept_id: string;
+  attempts: number;
+  correct: number;
+  incorrect: number;
+  historical_accuracy: number | null;
+  recent_accuracy: number | null;
+  smoothed_performance: number;
+  performance_trend: "improving" | "declining" | "stable" | "insufficient_evidence";
+  performance_change: number | null;
+  evidence_count: number;
+  evidence_sufficiency: "none" | "low" | "moderate" | "high";
+  estimate_confidence: "low" | "moderate" | "high";
+  last_observed_interaction: { question_id: string | null; timestamp: string | null } | null;
+};
+export type StudentBehavioralState = {
+  profile: Profile;
+  source: "student_studio_interactions";
+  state: {
+    schema_version: string;
+    student_studio_state_schema_version: string;
+    state_timestamp: string | null;
+    topic_states: TopicBehavioralSummary[];
+  };
+  state_version: number | null;
+  previous_state_version: number | null;
+  supporting_evidence_ids: string[];
+};
 
 export function createLearningService(client: ApiClient) {
   return {
@@ -138,6 +166,13 @@ export function createLearningService(client: ApiClient) {
     saveProgress: (lessonId: string, body: { session_id: string; current_section_id: string; completed_section_ids: string[] }, signal?: AbortSignal) => client.post<LessonProgress, typeof body>(`/studio/lessons/${encodeURIComponent(lessonId)}/progress`, body, { signal }),
     submitAnswer: (questionId: string, body: { submission_id: string; session_id: string; response: Record<string, unknown> }, signal?: AbortSignal) => client.post<AnswerFeedback, typeof body>(`/studio/questions/${encodeURIComponent(questionId)}/answer`, body, { signal }),
     progress: (signal?: AbortSignal) => client.get<StudentProgress>("/studio/progress", { signal }),
+    behavioralState: (signal?: AbortSignal) => client.get<StudentBehavioralState>("/studio/behavioral-state", { signal }),
+    topicBehavioralState: (topicId: string, signal?: AbortSignal) => client.get<{
+      profile: Profile; source: "student_studio_interactions"; topic_id: string;
+      state: TopicBehavioralSummary | null; state_version: number | null;
+      history: { state_version: number; state_timestamp: string; evidence_count: number; state: TopicBehavioralSummary; supporting_evidence_ids: string[] }[];
+      total: number;
+    }>(`/studio/behavioral-state/topics/${encodeURIComponent(topicId)}`, { signal }),
     history: (signal?: AbortSignal) => client.get<LearningHistory>("/studio/history?limit=100", { signal }),
   };
 }

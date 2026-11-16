@@ -2004,6 +2004,63 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "learner_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Learner Id"
+            }
+          },
+          {
+            "name": "topic_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic Id"
+            }
+          },
+          {
+            "name": "lesson_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lesson Id"
+            }
           }
         ],
         "responses": {
@@ -2013,6 +2070,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_StudentEvidenceData_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/evidence/{evidence_id}": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Student Evidence Record",
+        "operationId": "getStudentEvidenceRecord",
+        "parameters": [
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "title": "Evidence Id"
+            }
+          },
+          {
+            "name": "learner_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
                 }
               }
             }
@@ -2044,6 +2165,149 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_StudentBehavioralStateData_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/behavioral-state/versions": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Student Behavioral State Versions",
+        "operationId": "getStudentBehavioralStateVersions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StudentBehavioralStateVersionsData_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/behavioral-state/topics/{topic_id}": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Student Topic Behavioral State",
+        "operationId": "getStudentTopicBehavioralState",
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StudentTopicBehavioralStateData_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/intelligence-status": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Student Intelligence Status",
+        "operationId": "getStudentIntelligenceStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StudentIntelligenceStatusData_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/recommendation": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Student Recommendation",
+        "operationId": "getStudentRecommendation",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StudentRecommendationData_"
                 }
               }
             }
@@ -2117,6 +2381,26 @@
             "type": "boolean",
             "title": "Idempotent Replay",
             "default": false
+          },
+          "processing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LearningProcessingStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recommendation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendationDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -2675,6 +2959,29 @@
         ],
         "title": "DefinitionBlock"
       },
+      "DownstreamAvailability": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "not_available"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "reason"
+        ],
+        "title": "DownstreamAvailability"
+      },
       "Envelope_AnswerFeedback_": {
         "properties": {
           "success": {
@@ -3112,6 +3419,29 @@
         ],
         "title": "Envelope[StudentBehavioralStateData]"
       },
+      "Envelope_StudentBehavioralStateVersionsData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentBehavioralStateVersionsData"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[StudentBehavioralStateVersionsData]"
+      },
       "Envelope_StudentEvidenceData_": {
         "properties": {
           "success": {
@@ -3134,6 +3464,29 @@
           "request_id"
         ],
         "title": "Envelope[StudentEvidenceData]"
+      },
+      "Envelope_StudentIntelligenceStatusData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentIntelligenceStatusData"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[StudentIntelligenceStatusData]"
       },
       "Envelope_StudentProgressData_": {
         "properties": {
@@ -3158,6 +3511,29 @@
         ],
         "title": "Envelope[StudentProgressData]"
       },
+      "Envelope_StudentRecommendationData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentRecommendationData"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[StudentRecommendationData]"
+      },
       "Envelope_StudentStudioProfile_": {
         "properties": {
           "success": {
@@ -3180,6 +3556,29 @@
           "request_id"
         ],
         "title": "Envelope[StudentStudioProfile]"
+      },
+      "Envelope_StudentTopicBehavioralStateData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentTopicBehavioralStateData"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[StudentTopicBehavioralStateData]"
       },
       "Envelope_TopicDetails_": {
         "properties": {
@@ -4135,6 +4534,39 @@
         ],
         "title": "LearningObjective"
       },
+      "LearningProcessingStatus": {
+        "properties": {
+          "interaction": {
+            "type": "string",
+            "const": "saved",
+            "title": "Interaction"
+          },
+          "evidence": {
+            "type": "string",
+            "const": "recorded",
+            "title": "Evidence"
+          },
+          "behavioral_state": {
+            "type": "string",
+            "const": "updated",
+            "title": "Behavioral State"
+          },
+          "behavioral_state_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Behavioral State Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "interaction",
+          "evidence",
+          "behavioral_state",
+          "behavioral_state_version"
+        ],
+        "title": "LearningProcessingStatus"
+      },
       "LearningSessionData": {
         "properties": {
           "session_id": {
@@ -4704,6 +5136,82 @@
         ],
         "title": "ParagraphBlock"
       },
+      "PersonalizedRecommendation": {
+        "properties": {
+          "recommendation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Recommendation Id"
+          },
+          "learner_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Learner Id"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/RecommendedActivity"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "supporting_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Supporting Evidence Ids"
+          },
+          "source_behavioral_state_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Source Behavioral State Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "superseded"
+            ],
+            "title": "Status"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recommendation_id",
+          "learner_id",
+          "activity",
+          "reason",
+          "supporting_evidence_ids",
+          "source_behavioral_state_version",
+          "created_at",
+          "status",
+          "limitations"
+        ],
+        "title": "PersonalizedRecommendation"
+      },
       "Phase9ConceptState": {
         "properties": {
           "concept_id": {
@@ -5217,6 +5725,93 @@
         ],
         "title": "QuestionPractice"
       },
+      "RecommendationDecision": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "personalized",
+              "more_evidence_needed"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "source_behavioral_state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Behavioral State Version"
+          },
+          "recommendation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonalizedRecommendation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "RecommendationDecision"
+      },
+      "RecommendedActivity": {
+        "properties": {
+          "activity_type": {
+            "type": "string",
+            "enum": [
+              "review_lesson",
+              "continue_lesson",
+              "additional_practice"
+            ],
+            "title": "Activity Type"
+          },
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "lesson_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Lesson Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "activity_type",
+          "topic_id",
+          "lesson_id",
+          "title"
+        ],
+        "title": "RecommendedActivity"
+      },
       "RepresentationDecision": {
         "properties": {
           "selected_representation": {
@@ -5424,6 +6019,40 @@
             "additionalProperties": true,
             "type": "object",
             "title": "State"
+          },
+          "state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Version"
+          },
+          "previous_state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous State Version"
+          },
+          "supporting_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Supporting Evidence Ids"
           }
         },
         "additionalProperties": false,
@@ -5434,6 +6063,115 @@
           "state"
         ],
         "title": "StudentBehavioralStateData"
+      },
+      "StudentBehavioralStateVersionData": {
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Profile Id"
+          },
+          "state_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "State Version"
+          },
+          "source_event_sequence": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Source Event Sequence"
+          },
+          "last_evidence_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Last Evidence Id"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Evidence Count"
+          },
+          "previous_state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous State Version"
+          },
+          "state_timestamp": {
+            "type": "string",
+            "title": "State Timestamp"
+          },
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "supporting_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Supporting Evidence Ids"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile_id",
+          "state_version",
+          "source_event_sequence",
+          "last_evidence_id",
+          "evidence_count",
+          "state_timestamp",
+          "state",
+          "supporting_evidence_ids",
+          "created_at"
+        ],
+        "title": "StudentBehavioralStateVersionData"
+      },
+      "StudentBehavioralStateVersionsData": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/StudentStudioProfile"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StudentBehavioralStateVersionData"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "items",
+          "total"
+        ],
+        "title": "StudentBehavioralStateVersionsData"
       },
       "StudentEvidenceData": {
         "properties": {
@@ -5462,6 +6200,49 @@
           "total"
         ],
         "title": "StudentEvidenceData"
+      },
+      "StudentIntelligenceStatusData": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/StudentStudioProfile"
+          },
+          "source_behavioral_state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Behavioral State Version"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Evidence Count"
+          },
+          "cognitive_state": {
+            "$ref": "#/components/schemas/DownstreamAvailability"
+          },
+          "representation_planning": {
+            "$ref": "#/components/schemas/DownstreamAvailability"
+          },
+          "trajectory": {
+            "$ref": "#/components/schemas/DownstreamAvailability"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "evidence_count",
+          "cognitive_state",
+          "representation_planning",
+          "trajectory"
+        ],
+        "title": "StudentIntelligenceStatusData"
       },
       "StudentProgressData": {
         "properties": {
@@ -5592,6 +6373,23 @@
         ],
         "title": "StudentProgressSummary"
       },
+      "StudentRecommendationData": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/StudentStudioProfile"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/RecommendationDecision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "decision"
+        ],
+        "title": "StudentRecommendationData"
+      },
       "StudentStudioProfile": {
         "properties": {
           "profile_id": {
@@ -5624,6 +6422,115 @@
           "notice"
         ],
         "title": "StudentStudioProfile"
+      },
+      "StudentTopicBehavioralStateData": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/StudentStudioProfile"
+          },
+          "source": {
+            "type": "string",
+            "const": "student_studio_interactions",
+            "title": "Source"
+          },
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Version"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/StudentTopicBehavioralStateVersion"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "source",
+          "topic_id",
+          "state",
+          "history",
+          "total"
+        ],
+        "title": "StudentTopicBehavioralStateData"
+      },
+      "StudentTopicBehavioralStateVersion": {
+        "properties": {
+          "state_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "State Version"
+          },
+          "state_timestamp": {
+            "type": "string",
+            "title": "State Timestamp"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Evidence Count"
+          },
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "supporting_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Supporting Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "state_version",
+          "state_timestamp",
+          "evidence_count",
+          "state",
+          "supporting_evidence_ids"
+        ],
+        "title": "StudentTopicBehavioralStateVersion"
       },
       "TopicDetails": {
         "properties": {

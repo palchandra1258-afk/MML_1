@@ -14,6 +14,7 @@ import {
   type Practice,
   type PublicQuestion,
   type StudentProgress,
+  type StudentBehavioralState,
   type TopicDetails,
 } from "@/lib/services/learning.service";
 
@@ -62,6 +63,15 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
+function formatRate(value: number | null) {
+  return value === null ? "Not enough responses" : `${Math.round(value * 100)}%`;
+}
+
+function topicTitle(topicId: string, catalog: CurriculumCatalog | null) {
+  const topic = flattenTopics(catalog).find((item) => item.topic.topic_id === topicId)?.topic;
+  return topic?.title ?? topicId;
+}
+
 export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
   const [catalog, setCatalog] = useState<CurriculumCatalog | null>(null);
   const [topic, setTopic] = useState<TopicDetails | null>(null);
@@ -69,6 +79,7 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
   const [practice, setPractice] = useState<Practice | null>(null);
   const [learningSession, setLearningSession] = useState<LearningSession | null>(null);
   const [progress, setProgress] = useState<StudentProgress | null>(null);
+  const [behavioralState, setBehavioralState] = useState<StudentBehavioralState | null>(null);
   const [history, setHistory] = useState<LearningHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,21 +106,25 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
       setPractice(null);
       setLearningSession(null);
       setProgress(null);
+      setBehavioralState(null);
       setHistory(null);
       try {
         const service = getLearningService();
         const requests: Promise<unknown>[] = [service.profile(controller.signal)];
         if (view === "home" || view === "explore" || view === "subject") requests.push(service.catalog(controller.signal));
-        if (view === "home") requests.push(service.progress(controller.signal));
+        if (view === "home") requests.push(service.progress(controller.signal), service.behavioralState(controller.signal));
         if (view === "topic" && id) requests.push(service.topic(id, controller.signal));
         if (view === "lesson" && id) requests.push(service.lesson(id, controller.signal), service.startSession(id, controller.signal));
         if (view === "practice" && id) requests.push(service.practice(id, controller.signal), service.startSession(id, controller.signal));
-        if (view === "progress") requests.push(service.progress(controller.signal));
+        if (view === "progress") requests.push(service.progress(controller.signal), service.behavioralState(controller.signal));
         if (view === "history") requests.push(service.history(controller.signal));
         const values = await Promise.all(requests);
         let cursor = 1;
         if (view === "home" || view === "explore" || view === "subject") setCatalog((values[cursor++] as { data: CurriculumCatalog }).data);
-        if (view === "home") setProgress((values[cursor++] as { data: StudentProgress }).data);
+        if (view === "home") {
+          setProgress((values[cursor++] as { data: StudentProgress }).data);
+          setBehavioralState((values[cursor++] as { data: StudentBehavioralState }).data);
+        }
         if (view === "topic" && id) setTopic((values[cursor++] as { data: TopicDetails }).data);
         if (view === "lesson" && id) {
           setLesson((values[cursor++] as { data: Lesson }).data);
@@ -123,7 +138,10 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
           setPractice((values[cursor++] as { data: Practice }).data);
           setLearningSession((values[cursor++] as { data: LearningSession }).data);
         }
-        if (view === "progress") setProgress((values[cursor++] as { data: StudentProgress }).data);
+        if (view === "progress") {
+          setProgress((values[cursor++] as { data: StudentProgress }).data);
+          setBehavioralState((values[cursor++] as { data: StudentBehavioralState }).data);
+        }
         if (view === "history") setHistory((values[cursor++] as { data: LearningHistory }).data);
       } catch (loadError) {
         if (!controller.signal.aborted) setError(loadError instanceof Error ? loadError.message : "The API request failed.");
@@ -246,11 +264,11 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
       <article className="studio-lesson-content panel"><span className="studio-eyebrow">Section {activeSection + 1} of {lesson.sections.length}</span><h2>{activeLessonSection.title}</h2><div className="studio-lesson-blocks">{activeLessonSection.blocks.map((block, index) => <LessonBlockView key={`${activeLessonSection.section_id}-${index}`} block={block}/>)}</div><div className="studio-lesson-controls"><button className="button button--secondary" disabled={activeSection === 0} onClick={() => void saveSection(Math.max(0, activeSection - 1))}>Previous</button><span>{lessonProgress?.completion_percentage ?? 0}% lesson sections complete</span><button className="button button--primary" onClick={() => void completeSection()}>{activeSection === lesson.sections.length - 1 ? "Finish lesson" : "Mark complete and continue"}</button></div>{lessonProgress?.status === "completed" && <div className="studio-completion-note" role="status"><strong>Lesson content completed</strong><span>This records section completion. It does not represent a mastery judgment.</span></div>}</article></div>{error && <ErrorPanel message={error} retry={() => setReloadCount((count) => count + 1)}/>}</> : <EmptyPanel title="Lesson unavailable" description="Return to Explore Subjects and choose a published lesson."/>}</div>;
 
   if (view === "practice") return <div className="student-studio-page">{practice && question ? <><div className="studio-breadcrumb"><Link href={`/studio/lessons/${practice.lesson_id}`}>Back to lesson</Link><span>›</span><span>Practice</span></div><section className="studio-practice-header panel"><div><span className="studio-eyebrow">Practice · {practice.content_version}</span><h2>Check your understanding</h2><p>Answers are evaluated by the backend and saved as separate attempts. Feedback is about this response, not a claim of mastery.</p></div><span className="studio-question-count">Question {activeQuestion + 1} of {practice.questions.length}</span></section><div className="studio-question-card panel"><div className="studio-question-meta"><span>{question.question_type.replaceAll("_", " ")}</span><span>{question.difficulty}</span></div><h3>{question.prompt}</h3>{question.question_type === "numeric" ? <label className="studio-numeric-answer">Your answer<input inputMode="decimal" value={numericAnswer} onChange={(event) => { submissionId.current = null; setNumericAnswer(event.target.value); setFeedback(null); }} placeholder="Enter a number" disabled={Boolean(feedback)}/></label> : <div className="studio-answer-options">{question.options.map((option) => <label className={`studio-answer-option ${selectedOptions.includes(option.option_id) ? "is-selected" : ""}`} key={option.option_id}><input type={question.question_type === "single_choice" ? "radio" : "checkbox"} name={question.question_id} checked={selectedOptions.includes(option.option_id)} onChange={() => chooseOption(option.option_id, question.question_type === "multiple_choice")} disabled={Boolean(feedback)}/><span>{option.text}</span></label>)}</div>}
-      {feedback && <div className={`studio-feedback ${feedback.is_correct ? "is-correct" : "is-incorrect"}`} role="status"><strong>{feedback.feedback_message}</strong><p>{feedback.explanation}</p><p><span>Answer</span> {feedback.expected_answer}</p><small>Saved attempt {feedback.attempt_number} · response outcome only</small></div>}
+      {feedback && <div className={`studio-feedback ${feedback.is_correct ? "is-correct" : "is-incorrect"}`} role="status"><strong>{feedback.feedback_message}</strong><p>{feedback.explanation}</p><p><span>Answer</span> {feedback.expected_answer}</p><small>Saved attempt {feedback.attempt_number} · evidence recorded ({feedback.evidence_id}) · response outcome only</small></div>}
       <div className="studio-question-controls">{feedback ? activeQuestion + 1 < practice.questions.length ? <button className="button button--primary" onClick={nextQuestion}>Next question <span aria-hidden="true">→</span></button> : <Link className="button button--primary" href={`/studio/lessons/${practice.lesson_id}`}>Return to lesson</Link> : <button className="button button--primary" onClick={() => void submitAnswer()} disabled={submitting || (question.question_type === "numeric" ? !numericAnswer.trim() : selectedOptions.length === 0)}>{submitting ? "Saving answer…" : "Submit answer"}</button>}</div>
     </div>{error && <ErrorPanel message={error} retry={() => setReloadCount((count) => count + 1)}/>}</> : <EmptyPanel title="Practice is unavailable" description="Return to a published lesson to open its practice questions."/>}</div>;
 
-  if (view === "progress") return <div className="student-studio-page"><header className="studio-page-intro"><span className="studio-eyebrow">My learning</span><h2>Your saved progress</h2><p>Progress is based on saved required lesson sections and recorded practice responses.</p></header>{progress && <><div className="studio-metric-grid">{[[progress.summary.lessons_started,"lessons started"],[progress.summary.lessons_completed,"lessons completed"],[progress.summary.practice_attempts,"practice attempts"],[progress.summary.lessons_needing_review,"lessons to review"]].map(([value,label]) => <div className="studio-metric-card panel" key={String(label)}><strong>{value}</strong><span>{label}</span></div>)}</div><div className="studio-course-list">{progress.courses.filter((course) => course.lesson_count > 0).map((course) => <article className="studio-course-progress panel" key={course.course_id}><div className="studio-course-progress-heading"><div><span className="studio-eyebrow">{course.status.replaceAll("_", " ")}</span><h3>{course.title}</h3></div><strong>{course.completion_percentage}%</strong></div><div className="studio-progress-track"><span style={{ width: `${course.completion_percentage}%` }}/></div><div className="studio-course-progress-foot"><span>{course.lessons_completed} of {course.lesson_count} lessons completed</span><span>{course.practice_attempts} attempts · {course.correct_attempts} correct</span></div>{course.response_accuracy !== null && <small className="studio-accuracy-note">Recorded response accuracy: {Math.round(course.response_accuracy * 100)}%. This is not a mastery score.</small>}</article>)}</div><p className="studio-history-link"><Link href="/studio/history">Review your learning history <span aria-hidden="true">→</span></Link></p></>}</div>;
+  if (view === "progress") return <div className="student-studio-page"><header className="studio-page-intro"><span className="studio-eyebrow">My learning</span><h2>Your saved progress</h2><p>Progress is based on saved required lesson sections and recorded practice responses.</p></header>{progress && <><div className="studio-metric-grid">{[[progress.summary.lessons_started,"lessons started"],[progress.summary.lessons_completed,"lessons completed"],[progress.summary.practice_attempts,"practice attempts"],[progress.summary.lessons_needing_review,"lessons to review"]].map(([value,label]) => <div className="studio-metric-card panel" key={String(label)}><strong>{value}</strong><span>{label}</span></div>)}</div><section className="studio-behavior-state panel"><div className="studio-section-heading"><div><span className="studio-eyebrow">Behavioral summary</span><h2>Practice by topic</h2></div>{behavioralState?.state_version && <small>Snapshot {behavioralState.state_version}</small>}</div><p>Descriptive summaries of your saved responses. They are not cognitive diagnoses or mastery scores.</p>{behavioralState?.state.topic_states.length ? <div className="studio-topic-state-list">{behavioralState.state.topic_states.map((item) => <article className="studio-topic-state" key={item.concept_id}><div><strong>{topicTitle(item.concept_id, catalog)}</strong><span>{item.attempts} {item.attempts === 1 ? "attempt" : "attempts"} · {item.correct} correct · {item.incorrect} incorrect</span></div><div className="studio-topic-state-metrics"><span>Historical {formatRate(item.historical_accuracy)}</span><span>Recent {formatRate(item.recent_accuracy)}</span><span>{item.evidence_sufficiency === "low" ? "Limited evidence" : `${item.evidence_sufficiency} evidence`}</span><span>{item.performance_trend === "insufficient_evidence" ? "Trend needs more responses" : `Trend ${item.performance_trend}`}</span></div></article>)}</div> : <EmptyPanel title="No behavioral summaries yet" description="Submit a practice answer to create a topic summary from saved evidence."/>}</section><div className="studio-course-list">{progress.courses.filter((course) => course.lesson_count > 0).map((course) => <article className="studio-course-progress panel" key={course.course_id}><div className="studio-course-progress-heading"><div><span className="studio-eyebrow">{course.status.replaceAll("_", " ")}</span><h3>{course.title}</h3></div><strong>{course.completion_percentage}%</strong></div><div className="studio-progress-track"><span style={{ width: `${course.completion_percentage}%` }}/></div><div className="studio-course-progress-foot"><span>{course.lessons_completed} of {course.lesson_count} lessons completed</span><span>{course.practice_attempts} attempts · {course.correct_attempts} correct</span></div>{course.response_accuracy !== null && <small className="studio-accuracy-note">Recorded response accuracy: {Math.round(course.response_accuracy * 100)}%. This is not a mastery score.</small>}</article>)}</div><p className="studio-history-link"><Link href="/studio/history">Review your learning history <span aria-hidden="true">→</span></Link></p></>}</div>;
 
   const historyItems: HistoryEntry[] = history?.items ?? [];
   return <div className="student-studio-page"><header className="studio-page-intro"><span className="studio-eyebrow">My learning</span><h2>Learning history</h2><p>Sessions and submitted answers saved by this local demo profile.</p></header>{historyItems.length ? <ol className="studio-history-list">{historyItems.map((item) => <li key={item.entry_id} className="panel"><span className={`studio-history-mark ${item.event_type === "answer_submitted" ? item.is_correct ? "is-correct" : "is-incorrect" : ""}`}>{item.event_type === "lesson_started" ? "↗" : item.is_correct ? "✓" : "·"}</span><div><strong>{item.event_type === "lesson_started" ? "Started lesson" : item.is_correct ? "Submitted a correct response" : "Submitted an incorrect response"}</strong><span>{item.lesson_title}{item.attempt_number ? ` · attempt ${item.attempt_number}` : ""}</span><small>{formatDate(item.occurred_at)}</small></div><Link href={`/studio/lessons/${item.lesson_id}`}>Open lesson</Link></li>)}</ol> : <EmptyPanel title="No learning activity yet" description="Start a lesson and your saved sessions and practice answers will appear here."/>}</div>;

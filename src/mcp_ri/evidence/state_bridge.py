@@ -18,6 +18,7 @@ def phase9_row_from_interaction(record: Mapping[str, Any]) -> dict[str, Any]:
         "source_row_order": sequence,
         "timestamp": temporal.get("event_timestamp"),
         "question_id": content.get("question_id"),
+        "topic_id": content.get("topic_id"),
         "correctness": content.get("correctness"),
         "skill_tags": ";".join(content.get("skill_ids", [])),
         "is_exact_duplicate": "1" if content.get("is_exact_duplicate") else "0",

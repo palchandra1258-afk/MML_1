@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from sqlalchemy import func, select
+
+from mcp_ri.api.persistence import StudentLearningAttempt, StudentStudioEvidenceRecord
+
 
 def test_curriculum_catalog_search_and_public_practice_hide_answer_keys(api):
     client = api.client
@@ -56,6 +60,86 @@ def test_answers_are_server_evaluated_idempotent_and_append_only(api):
     assert all(record["provenance"]["source_dataset"] == "mcp-ri-student-studio" for record in evidence["items"])
     assert all(record["content"]["skill_ids"] == [] for record in evidence["items"])
     assert {record["content"]["correctness"] for record in evidence["items"]} == {0, 1}
+    assert all(record["provenance"]["source_record_id"] in {result["attempt_id"], incorrect["attempt_id"]}
+               for record in evidence["items"])
+    detail = client.get(f"/api/v1/studio/evidence/{result['evidence_id']}", params={"learner_id": "studio-local-demo"})
+    assert detail.status_code == 200
+    assert detail.json()["data"]["provenance"]["source_record_id"] == result["attempt_id"]
+    assert client.get("/api/v1/studio/evidence/ev_00000000000000000000000000000000").status_code == 404
+    with api.app.state.database.session() as db:
+        assert db.scalar(select(func.count()).select_from(StudentStudioEvidenceRecord)) == 2
+        assert db.scalar(select(func.count()).select_from(StudentLearningAttempt)) == 2
+
+
+def test_evidence_filters_are_learner_scoped_and_paginated(api):
+    client = api.client
+    lesson_session = client.post("/api/v1/studio/lessons/conditional-probability/sessions").json()["data"]
+    payload = {
+        "submission_id": "evidence-filter-one",
+        "session_id": lesson_session["session_id"],
+        "response": {"option_ids": ["a"]},
+    }
+    first = client.post("/api/v1/studio/questions/conditional-probability-q1/answer", json=payload)
+    assert first.status_code == 200
+    assert client.post("/api/v1/studio/questions/conditional-probability-q1/answer", json={
+        **payload, "submission_id": "evidence-filter-two", "response": {"option_ids": ["b"]},
+    }).status_code == 200
+
+    base = client.get("/api/v1/studio/evidence", params={
+        "learner_id": "studio-local-demo", "topic_id": "conditional-probability",
+    }).json()["data"]
+    assert base["total"] == 2
+    assert len(base["items"]) == 2
+    page = client.get("/api/v1/studio/evidence", params={
+        "learner_id": "studio-local-demo", "topic_id": "conditional-probability", "limit": 1,
+    }).json()["data"]
+    assert page["total"] == 2
+    assert len(page["items"]) == 1
+    assert client.get("/api/v1/studio/evidence", params={"topic_id": "expected-value"}).json()["data"]["total"] == 0
+    assert client.get("/api/v1/studio/evidence", params={"learner_id": "u135328"}).status_code == 404
+    assert client.get("/api/v1/studio/evidence", params={"topic_id": "bad topic"}).status_code == 422
+
+
+def test_evidence_and_attempt_roll_back_together_when_evidence_write_fails(api, monkeypatch):
+    client = api.client
+    session = client.post("/api/v1/studio/lessons/conditional-probability/sessions").json()["data"]
+
+    def fail_evidence(*_args, **_kwargs):
+        raise ValueError("injected evidence persistence failure")
+
+    monkeypatch.setattr("mcp_ri.api.learning_service.LearningService._persist_evidence_record", fail_evidence)
+    response = client.post("/api/v1/studio/questions/conditional-probability-q1/answer", json={
+        "submission_id": "evidence-write-failure",
+        "session_id": session["session_id"],
+        "response": {"option_ids": ["a"]},
+    })
+    assert response.status_code == 503
+    with api.app.state.database.session() as db:
+        assert db.scalar(select(StudentLearningAttempt)) is None
+        assert db.scalar(select(StudentStudioEvidenceRecord)) is None
+
+
+def test_duplicate_concurrent_retries_create_one_attempt_and_evidence(api):
+    from concurrent.futures import ThreadPoolExecutor
+
+    client = api.client
+    session = client.post("/api/v1/studio/lessons/conditional-probability/sessions").json()["data"]
+    payload = {
+        "submission_id": "concurrent-evidence-retry",
+        "session_id": session["session_id"],
+        "response": {"option_ids": ["a"]},
+    }
+
+    def submit(_):
+        return client.post("/api/v1/studio/questions/conditional-probability-q1/answer", json=payload)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        responses = list(pool.map(submit, range(4)))
+    assert all(response.status_code == 200 for response in responses)
+    assert len({response.json()["data"]["attempt_id"] for response in responses}) == 1
+    with api.app.state.database.session() as db:
+        assert db.scalar(select(func.count()).select_from(StudentLearningAttempt)) == 1
+        assert db.scalar(select(func.count()).select_from(StudentStudioEvidenceRecord)) == 1
 
 
 def test_numeric_tolerance_progress_resume_history_and_phase9_boundary(api):

@@ -66,7 +66,7 @@ def test_database_initializes_with_alembic_migration(tmp_path):
                 __import__("sqlalchemy").text("SELECT value FROM app_metadata WHERE key='schema_contract'")
             ).scalar_one()
             assert version == []
-            assert contract == "migrations/0002_learning_studio"
+            assert contract == "migrations/0004_f10_1_learning_evidence"
 
 
 def test_learner_list_and_detail_do_not_invent_data(api):

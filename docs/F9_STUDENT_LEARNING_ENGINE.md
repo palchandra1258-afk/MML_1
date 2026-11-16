@@ -41,7 +41,7 @@ Choice submissions use `{"option_ids":["a"]}`; numeric submissions use `{"value"
 
 ## Persistence and progress rules
 
-Alembic revision `0002_learning_studio` adds `studio_profiles`, `studio_learning_sessions`, `studio_lesson_progress`, and `studio_learning_attempts`. It does not rewrite revision `0001`, alter EdNet artifacts, or delete existing tables. Attempts retain the submitted answer, server evaluation, content version, session, sequence, and normalized evidence JSON.
+Alembic revision `0002_learning_studio` adds `studio_profiles`, `studio_learning_sessions`, `studio_lesson_progress`, and `studio_learning_attempts`. It does not rewrite revision `0001`, alter EdNet artifacts, or delete existing tables. Attempts retain the submitted answer, server evaluation, content version, session, and sequence. F9 initially embedded normalized evidence JSON on each attempt; F10.1 revision `0004_f10_1_learning_evidence` migrates valid legacy evidence to a separate canonical `studio_evidence_records` table. New attempts keep raw answer fields on the event row and persist derived evidence separately; existing inline payloads remain for compatibility and safe downgrade.
 
 Lesson completion requires every required section to be saved as completed. A recent incorrect attempt can produce `needs_review` while content is incomplete. Once all required sections are completed, status is `completed`. Course completion is the fraction of its curated lessons whose content checkpoints are complete. Accuracy describes recorded responses only. It is not mastery, durable learning, or a validated learning outcome.
 

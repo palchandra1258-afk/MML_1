@@ -2,8 +2,9 @@
 
 from .audio import AudioAdapter
 from .interaction import InteractionAdapter
+from .student_studio import StudentStudioInteractionAdapter
 from .temporal import TemporalHistoryAdapter
 from .text import TextAdapter
 from .visual import VisualAdapter
 
-__all__ = ["AudioAdapter", "InteractionAdapter", "TemporalHistoryAdapter", "TextAdapter", "VisualAdapter"]
+__all__ = ["AudioAdapter", "InteractionAdapter", "StudentStudioInteractionAdapter", "TemporalHistoryAdapter", "TextAdapter", "VisualAdapter"]

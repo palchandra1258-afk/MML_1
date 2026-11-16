@@ -391,6 +391,24 @@ class StudentBehavioralStateData(StrictModel):
     supporting_evidence_ids: list[Identifier] = Field(default_factory=list)
 
 
+class StudentTopicBehavioralStateVersion(StrictModel):
+    state_version: int = Field(ge=1)
+    state_timestamp: str
+    evidence_count: int = Field(ge=1)
+    state: dict[str, Any]
+    supporting_evidence_ids: list[Identifier]
+
+
+class StudentTopicBehavioralStateData(StrictModel):
+    profile: StudentStudioProfile
+    source: Literal["student_studio_interactions"]
+    topic_id: Identifier
+    state: dict[str, Any] | None
+    state_version: int | None = Field(default=None, ge=1)
+    history: list[StudentTopicBehavioralStateVersion]
+    total: int = Field(ge=0)
+
+
 class DownstreamAvailability(StrictModel):
     status: Literal["available", "not_available"]
     reason: str

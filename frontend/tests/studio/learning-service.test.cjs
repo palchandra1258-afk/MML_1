@@ -45,3 +45,15 @@ test("student activity service sends answer and progress writes to backend route
   assert.deepEqual(client.calls[0].body, answer);
   assert.deepEqual(client.calls[1].body, progress);
 });
+
+test("student behavioral summary services read only Student Studio state routes", async () => {
+  const client = clientRecording();
+  const service = createLearningService(client);
+  await service.behavioralState();
+  await service.topicBehavioralState("conditional-probability");
+  assert.deepEqual(client.calls.map((call) => call.path), [
+    "/studio/behavioral-state",
+    "/studio/behavioral-state/topics/conditional-probability",
+  ]);
+  assert.ok(client.calls.every((call) => call.method === "GET"));
+});

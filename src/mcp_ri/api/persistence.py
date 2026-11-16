@@ -28,7 +28,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-CURRENT_SCHEMA_CONTRACT = "migrations/0003_f10_learning_intelligence"
+CURRENT_SCHEMA_CONTRACT = "migrations/0004_f10_1_learning_evidence"
 
 
 class Base(DeclarativeBase):
@@ -97,7 +97,7 @@ class StudentLessonProgress(Base):
 
 
 class StudentLearningAttempt(Base):
-    """Append-only evaluated answer and its normalized Phase 10 evidence record."""
+    """Append-only raw answer event; legacy F9 evidence payloads remain for compatibility."""
 
     __tablename__ = "studio_learning_attempts"
     __table_args__ = (
@@ -125,9 +125,32 @@ class StudentLearningAttempt(Base):
     feedback: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     content_version: Mapped[str] = mapped_column(String(40), nullable=False)
     event_timestamp: Mapped[str] = mapped_column(String(40), nullable=False)
-    evidence_record: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    evidence_record: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     processing_status: Mapped[str] = mapped_column(String(40), nullable=False, default="evidence_recorded")
     behavioral_state_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class StudentStudioEvidenceRecord(Base):
+    """Canonical Phase 10 evidence record derived from one persisted Studio attempt."""
+
+    __tablename__ = "studio_evidence_records"
+    __table_args__ = (
+        ForeignKeyConstraint(["profile_id"], ["studio_profiles.profile_id"], ondelete="RESTRICT"),
+        ForeignKeyConstraint(["source_event_id"], ["studio_learning_attempts.attempt_id"], ondelete="RESTRICT"),
+        UniqueConstraint("profile_id", "source_event_id", name="uq_studio_evidence_source_event"),
+        Index("ix_studio_evidence_profile_time", "profile_id", "created_at"),
+        Index("ix_studio_evidence_profile_topic", "profile_id", "topic_id"),
+        Index("ix_studio_evidence_profile_lesson", "profile_id", "lesson_id"),
+    )
+
+    evidence_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_event_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    topic_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    lesson_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    question_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    evidence_record: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False, default=utc_now)
 
 
 class StudentBehavioralStateVersion(Base):

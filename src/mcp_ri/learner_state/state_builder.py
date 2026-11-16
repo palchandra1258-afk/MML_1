@@ -179,6 +179,9 @@ class LearnerStateAccumulator:
         self.missing_skill_mapping_interactions = 0
         self.duplicate_interactions = 0
         self.concepts: dict[str, _ConceptAccumulator] = defaultdict(_ConceptAccumulator)
+        # Studio topics are an authored aggregation key carried by evidence;
+        # they are not promoted to EdNet skills or concept relationships.
+        self.topics: dict[str, _ConceptAccumulator] = defaultdict(_ConceptAccumulator)
         self.overall_recent: deque[int] = deque(maxlen=2 * TREND_HALF_WINDOW)
         self.last_state_timestamp: str | None = None
         self._last_numeric_timestamp: int | None = None
@@ -212,6 +215,7 @@ class LearnerStateAccumulator:
 
         label = _parse_label(row.get("correctness"))
         concepts = skill_ids(row.get("skill_tags", row.get("current_skill_tags", "")))
+        topic_id = str(row.get("topic_id", "")).strip()
         source_order_value = row.get("source_row_order")
         interaction = {
             "question_id": str(row.get("question_id", row.get("current_question_id", ""))) or None,
@@ -230,6 +234,8 @@ class LearnerStateAccumulator:
             self.missing_skill_mapping_interactions += 1
         for concept_id in concepts:
             self.concepts[concept_id].update(label, interaction)
+        if topic_id:
+            self.topics[topic_id].update(label, interaction)
         if str(row.get("is_exact_duplicate", "0")) == "1":
             self.duplicate_interactions += 1
 
