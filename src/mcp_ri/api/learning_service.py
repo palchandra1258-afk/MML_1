@@ -1041,7 +1041,10 @@ class LearningService:
                 evidence_count=row.evidence_count,
                 previous_state_version=row.previous_state_version,
                 state_timestamp=row.state_timestamp,
-                state=row.state_data,
+                state=(row.state_data if "topic_states" in row.state_data else {
+                    **row.state_data,
+                    **self._studio_topic_extension(session, row.source_event_sequence),
+                }),
                 supporting_evidence_ids=self._supporting_evidence_ids(session, row.source_event_sequence),
                 created_at=row.created_at,
             ) for row in rows],
