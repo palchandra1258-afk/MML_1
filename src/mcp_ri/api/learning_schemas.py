@@ -127,7 +127,10 @@ class LessonContent(StrictModel):
     learning_objectives: list[LearningObjective] = Field(min_length=1)
     estimated_minutes: int = Field(ge=1, le=240)
     content_version: ContentVersion
-    content_source: Literal["curated_static"] = "curated_static"
+    content_source: Literal["curated_static", "azure_generated"] = "curated_static"
+    subject: str = Field(default="", max_length=160)
+    learning_level: Literal["beginner", "intermediate", "advanced"] = "intermediate"
+    generation_source: Literal["curated", "azure_openai"] = "curated"
     sections: list[LessonSection] = Field(min_length=1)
 
 
@@ -144,6 +147,72 @@ class NumericGrading(StrictModel):
 
 
 GradingSpecification = Annotated[Union[ChoiceGrading, NumericGrading], Field(discriminator="kind")]
+
+
+class GeneratedQuestionDraft(StrictModel):
+    question_type: Literal["single_choice", "multiple_choice", "numeric"]
+    prompt: str = Field(min_length=1, max_length=2000)
+    options: list["QuestionOption"] = Field(default_factory=list, max_length=8)
+    grading: GradingSpecification
+    expected_answer: str = Field(min_length=1, max_length=500)
+    explanation: str = Field(min_length=1, max_length=1800)
+    difficulty: Literal["introductory", "intermediate", "challenge"]
+
+
+class GeneratedLessonDraft(StrictModel):
+    title: str = Field(min_length=1, max_length=200)
+    introduction: str = Field(min_length=1, max_length=2000)
+    estimated_minutes: int = Field(ge=5, le=240)
+    learning_objectives: list[LearningObjective] = Field(min_length=1, max_length=8)
+    sections: list[LessonSection] = Field(min_length=3, max_length=12)
+    questions: list[GeneratedQuestionDraft] = Field(min_length=3, max_length=12)
+
+
+class LessonGenerationRequest(StrictModel):
+    request_id: Identifier
+    topic: str = Field(min_length=2, max_length=160)
+    subject: str = Field(default="General learning", min_length=2, max_length=160)
+    level: Literal["beginner", "intermediate", "advanced"] = "beginner"
+
+
+class LessonGenerationResult(StrictModel):
+    lesson: LessonContent
+    question_count: int = Field(ge=0, le=12)
+    usage: dict[str, int] | None = None
+    notice: str
+
+
+class AzureAIStatus(StrictModel):
+    provider: Literal["azure_openai"]
+    configured: bool
+    missing_configuration: list[Literal[
+        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_DEPLOYMENT_NAME", "AZURE_OPENAI_API_VERSION",
+    ]]
+    deployment_name: str | None
+    timeout_seconds: float = Field(ge=1, le=120)
+    max_retries: int = Field(ge=0, le=5)
+    voice_deployment_used: Literal[False]
+
+
+class TutorRequest(StrictModel):
+    session_id: Identifier
+    turn_id: Identifier
+    message: str = Field(min_length=1, max_length=2000)
+    level: Literal["beginner", "intermediate", "advanced"] = "beginner"
+    section_id: Identifier | None = None
+
+
+class TutorResponse(StrictModel):
+    answer: str = Field(min_length=1, max_length=5000)
+    source: Literal["azure_supplementary_explanation"]
+    usage: dict[str, int] | None = None
+    notice: str
+
+
+class TutorHistoryItem(StrictModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=5000)
+    created_at: str
 
 
 class QuestionOption(StrictModel):

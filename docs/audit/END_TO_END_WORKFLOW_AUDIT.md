@@ -1,5 +1,7 @@
 # Student Learning Studio end-to-end workflow audit
 
+**Baseline date: 2026-11-16.** The current Studio additionally supports explicit AI generation, inline checkpoints, tutor history, and a rendered next-activity recommendation; see [`F11_AZURE_INTERACTIVE_LEARNING_PLATFORM.md`](../F11_AZURE_INTERACTIVE_LEARNING_PLATFORM.md). Its live Azure and browser workflows remain unverified.
+
 ## Actual student journey
 
 | Step | Actual implementation | Result / break |

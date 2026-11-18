@@ -1,16 +1,31 @@
 # Recommended next-phase roadmap
 
-This roadmap is based on current verified gaps. It does not authorize or begin implementation.
+Updated 2026-11-18 from the F10.2 and F11 implementation. This roadmap distinguishes verified code from live-provider and browser acceptance that remain outstanding.
 
-## Phase A — Stabilize and verify current Studio integration
+## Current implementation status
+
+- Phase A is complete for the F10.2 backend state/evidence contract, OpenAPI sync, student-facing response summaries/recommendations, replay/persistence tests, and Studio separation from EdNet. The full backend API suite passed (51 tests) on disposable databases.
+- F11 Azure generation/tutor, generated-content persistence, inline checkpoints, and assessment routes are implemented and API-tested with injected provider responses. No live Azure deployment was configured.
+- Frontend TypeScript, lint, and API/service tests pass. The production build remains blocked by Next.js failing to parse TypeScript `--showConfig`; browser workflow is unverified.
+- Migration 0005 was tested on disposable SQLite only. The configured application database was not migrated for F11; review it and run the explicit migration command when ready.
+- Phase 11/12/13 Studio intelligence remains gated on reviewed topic/concept grounding, actual available delivery capabilities, and a supported objective/prerequisite graph.
+
+## Immediate next work
+
+1. Resolve the Next.js production-build diagnostic and run a browser workflow against a disposable migrated database.
+2. Configure the backend Azure text-generation deployment through environment variables and verify topic generation, authentication failure, timeout, and throttling against Azure without exposing secrets. Review generated lesson quality before treating content as trusted.
+3. Define authentication, authorization, per-learner data scope, retention, and multi-process concurrency before any multi-user use.
+4. Commission a reviewed Studio topic/objective map before connecting Studio events to cognitive, representation, or trajectory modules.
+
+## Phase A — Stabilize and verify current Studio integration — COMPLETE_AND_VERIFIED (API/contracts)
 
 - **Objective:** Make current answer → evidence → behavioral-state → next-activity behavior reviewable and reproducible across backend, contract, and UI.
 - **Required modules:** `api/learning_*`, `api/persistence.py`, evidence normalizer/state bridge, learner-state accumulator, frontend Studio client/service/types, shared OpenAPI contract.
 - **Likely files:** `src/mcp_ri/api/learning_routes.py`, `learning_service.py`, `learning_schemas.py`, `persistence.py`; `migrations/versions/0003_f10_learning_intelligence.py`; `frontend/lib/services/learning.service.ts`, `frontend/components/studio/student-studio-client.tsx`, `shared/api-contracts/openapi.json`, API tests.
-- **Dependencies:** Resolve and review existing uncommitted work; install documented API test environment; decide exact response contract. No cognitive mapping required for this bounded functionality.
+- **Dependencies:** Completed against the checked-in contract and API test environment. Browser/build acceptance remains open, as listed above.
 - **Acceptance criteria:** OpenAPI matches routes/schemas; frontend renders processing outcome and recommendation with limitations; unknown/unavailable states are explicit; replay, failure rollback, profile isolation assumptions and concurrency semantics are covered; existing EdNet files remain untouched.
 - **Tests:** API tests with temporary SQLite; migration upgrade on a temporary DB; frontend service/component tests; full frontend lint/type/build; complete browser smoke journey against disposable local API/database.
-- **Deliverables:** Versioned contract, verified Studio workflow report, test output and implementation notes.
+- **Deliverables:** Versioned OpenAPI contract, `docs/F10_2_STUDENT_STUDIO_BEHAVIORAL_STATE.md`, and backend/frontend verification results. Build/browser verification remains pending.
 - **Risks:** Singleton identity may be mistaken for authentication; retry semantics can create duplicate submissions if IDs change; keep recommendation claims behavioral.
 
 ## Phase B — Identity, privacy, and persistence design

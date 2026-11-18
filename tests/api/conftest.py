@@ -113,7 +113,7 @@ def api(tmp_path: Path):
         phase11_states_path=artifact_paths["phase11_states"],
         phase12_plans_path=artifact_paths["phase12_plans"],
     )
-    app = create_app(settings, migrate_on_start=False)
+    app = create_app(settings, create_schema_on_start=True)
     with TestClient(app, raise_server_exceptions=False) as client:
         with app.state.database.session_factory.begin() as session:
             for name, path in artifact_paths.items():

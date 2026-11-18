@@ -26,6 +26,12 @@ class APISettings:
     phase11_states_path: Path
     phase12_plans_path: Path
     environment: str = "development"
+    azure_openai_endpoint: str = ""
+    azure_openai_api_key: str = ""
+    azure_openai_deployment_name: str = ""
+    azure_openai_api_version: str = ""
+    azure_openai_timeout_seconds: float = 30.0
+    azure_openai_max_retries: int = 2
 
     @classmethod
     def from_environment(cls) -> "APISettings":
@@ -56,6 +62,12 @@ class APISettings:
                 "results/reports/phase12-representation-20261106T112420Z/representation_plans.jsonl",
             ),
             environment=os.getenv("MCP_RI_ENVIRONMENT", "development"),
+            azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", "").strip(),
+            azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY", "").strip(),
+            azure_openai_deployment_name=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "").strip(),
+            azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "").strip(),
+            azure_openai_timeout_seconds=_bounded_float("AZURE_OPENAI_TIMEOUT_SECONDS", 30.0, 1.0, 120.0),
+            azure_openai_max_retries=_bounded_int("AZURE_OPENAI_MAX_RETRIES", 2, 0, 5),
         )
 
     def artifact_paths(self) -> dict[str, Path]:
@@ -66,3 +78,19 @@ class APISettings:
             "phase11_states": self.phase11_states_path,
             "phase12_plans": self.phase12_plans_path,
         }
+
+
+def _bounded_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if minimum <= value <= maximum else default
+
+
+def _bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if minimum <= value <= maximum else default

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from threading import RLock
+from collections import defaultdict, deque
+from threading import Lock, RLock
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -29,6 +31,12 @@ from .learning_schemas import (
     StudentStudioProfile,
     TopicDetails,
     Identifier,
+    LessonGenerationRequest,
+    LessonGenerationResult,
+    TutorRequest,
+    TutorResponse,
+    TutorHistoryItem,
+    AzureAIStatus,
 )
 from .learning_service import LearningService
 from .schemas import Envelope
@@ -36,6 +44,22 @@ from .schemas import Envelope
 
 learning_router = APIRouter(prefix="/api/v1", tags=["student-learning"])
 _SUBMISSION_LOCK = RLock()
+_AI_REQUEST_LOCK = Lock()
+_AI_REQUESTS: dict[str, deque[float]] = defaultdict(deque)
+_AI_REQUESTS_PER_MINUTE = 12
+
+
+def _enforce_ai_rate_limit(request: Request) -> None:
+    client_key = request.client.host if request.client is not None else "unknown"
+    now = time.monotonic()
+    with _AI_REQUEST_LOCK:
+        window = _AI_REQUESTS[client_key]
+        while window and now - window[0] >= 60:
+            window.popleft()
+        if len(window) >= _AI_REQUESTS_PER_MINUTE:
+            from .errors import APIError
+            raise APIError(429, "AI_RATE_LIMITED", "The local AI request limit has been reached. Try again in a minute.")
+        window.append(now)
 
 
 def _envelope(request: Request, data: Any) -> dict[str, Any]:
@@ -69,18 +93,63 @@ def get_topic(
 def get_lesson(
     lesson_id: str,
     request: Request,
+    session: Session = Depends(get_session),
     service: LearningService = Depends(get_learning_service),
 ) -> dict[str, Any]:
-    return _envelope(request, service.lesson(lesson_id))
+    return _envelope(request, service.lesson(lesson_id, session))
 
 
 @learning_router.get("/curriculum/lessons/{lesson_id}/practice", response_model=Envelope[QuestionPractice], operation_id="getLessonPractice")
 def get_lesson_practice(
     lesson_id: str,
     request: Request,
+    session: Session = Depends(get_session),
     service: LearningService = Depends(get_learning_service),
 ) -> dict[str, Any]:
-    return _envelope(request, service.practice(lesson_id))
+    return _envelope(request, service.practice(lesson_id, session))
+
+
+@learning_router.get("/studio/ai/status", response_model=Envelope[AzureAIStatus], operation_id="getStudentAIStatus")
+def get_student_ai_status(request: Request, service: LearningService = Depends(get_learning_service)) -> dict[str, Any]:
+    return _envelope(request, service.ai_status())
+
+
+@learning_router.post("/studio/lessons/generate", response_model=Envelope[LessonGenerationResult], operation_id="generateStudentLesson")
+def generate_student_lesson(
+    body: LessonGenerationRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+    service: LearningService = Depends(get_learning_service),
+) -> dict[str, Any]:
+    _enforce_ai_rate_limit(request)
+    data = service.generate_lesson(session, body)
+    session.commit()
+    return _envelope(request, data)
+
+
+@learning_router.post("/studio/lessons/{lesson_id}/tutor", response_model=Envelope[TutorResponse], operation_id="askLessonTutor")
+def ask_lesson_tutor(
+    lesson_id: str,
+    body: TutorRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+    service: LearningService = Depends(get_learning_service),
+) -> dict[str, Any]:
+    _enforce_ai_rate_limit(request)
+    data = service.tutor(session, lesson_id, body)
+    session.commit()
+    return _envelope(request, data)
+
+
+@learning_router.get("/studio/lessons/{lesson_id}/tutor/history", response_model=Envelope[list[TutorHistoryItem]], operation_id="getLessonTutorHistory")
+def get_lesson_tutor_history(
+    lesson_id: str,
+    request: Request,
+    session_id: Identifier,
+    session: Session = Depends(get_session),
+    service: LearningService = Depends(get_learning_service),
+) -> dict[str, Any]:
+    return _envelope(request, service.tutor_history(session, lesson_id, session_id))
 
 
 @learning_router.get("/studio/profile", response_model=Envelope[StudentStudioProfile], operation_id="getStudentStudioProfile")

@@ -3,6 +3,8 @@
 **Audit date:** 2026-11-16  
 **Scope:** Read-only audit of the checkout at `/home/mml_07/Desktop/MML`. Documentation was added under this directory; application code, schemas, data, and databases were not changed.
 
+**Implementation update (2026-11-18):** This audit describes the 2026-11-16 checkout and should be read as a dated baseline. Since then, F10.2 behavioral-state exposure and F11 Azure-backed lesson/tutor workflows, migration 0005, synchronized OpenAPI, and focused tests have been added. Current verified status and limitations are in [`FEATURE_STATUS_MATRIX.md`](FEATURE_STATUS_MATRIX.md), [`NEXT_PHASE_ROADMAP.md`](NEXT_PHASE_ROADMAP.md), [`F10_2_STUDENT_STUDIO_BEHAVIORAL_STATE.md`](../F10_2_STUDENT_STUDIO_BEHAVIORAL_STATE.md), and [`F11_AZURE_INTERACTIVE_LEARNING_PLATFORM.md`](../F11_AZURE_INTERACTIVE_LEARNING_PLATFORM.md). The F11 migration was not run against the configured application database.
+
 ## Executive summary
 
 MCP-RI is a substantial research prototype with a working EdNet preprocessing and next-answer prediction pipeline, evidence/state/representation/trajectory research modules, an artifact-backed FastAPI research API, and a separate curated Student Learning Studio. The Studio has live curriculum, lesson, practice, saved progress/history, server-side grading, evidence creation, versioned aggregate behavioral summaries, and a conservative activity recommendation path in the current source. It does **not** run Phase 11 cognition estimation, Phase 12 representation delivery, or Phase 13 trajectory orchestration on Studio events. Its fixed `studio-local-demo` identity is not authentication or multi-user isolation.

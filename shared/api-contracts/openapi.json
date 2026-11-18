@@ -1730,6 +1730,174 @@
         }
       }
     },
+    "/api/v1/studio/ai/status": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Student Ai Status",
+        "operationId": "getStudentAIStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AzureAIStatus_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/lessons/generate": {
+      "post": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Generate Student Lesson",
+        "operationId": "generateStudentLesson",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonGenerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LessonGenerationResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/lessons/{lesson_id}/tutor": {
+      "post": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Ask Lesson Tutor",
+        "operationId": "askLessonTutor",
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TutorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_TutorResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/studio/lessons/{lesson_id}/tutor/history": {
+      "get": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Get Lesson Tutor History",
+        "operationId": "getLessonTutorHistory",
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_TutorHistoryItem__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/profile": {
       "get": {
         "tags": [
@@ -2456,6 +2624,72 @@
         ],
         "title": "AnswerSubmission"
       },
+      "AzureAIStatus": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "const": "azure_openai",
+            "title": "Provider"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "missing_configuration": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "AZURE_OPENAI_ENDPOINT",
+                "AZURE_OPENAI_API_KEY",
+                "AZURE_OPENAI_DEPLOYMENT_NAME",
+                "AZURE_OPENAI_API_VERSION"
+              ]
+            },
+            "type": "array",
+            "title": "Missing Configuration"
+          },
+          "deployment_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment Name"
+          },
+          "timeout_seconds": {
+            "type": "number",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Timeout Seconds"
+          },
+          "max_retries": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Max Retries"
+          },
+          "voice_deployment_used": {
+            "type": "boolean",
+            "const": false,
+            "title": "Voice Deployment Used"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "configured",
+          "missing_configuration",
+          "deployment_name",
+          "timeout_seconds",
+          "max_retries",
+          "voice_deployment_used"
+        ],
+        "title": "AzureAIStatus"
+      },
       "BehavioralStateRecord": {
         "properties": {
           "schema_version": {
@@ -3005,6 +3239,29 @@
         ],
         "title": "Envelope[AnswerFeedback]"
       },
+      "Envelope_AzureAIStatus_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AzureAIStatus"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[AzureAIStatus]"
+      },
       "Envelope_BehavioralStateRecord_": {
         "properties": {
           "success": {
@@ -3211,6 +3468,29 @@
           "request_id"
         ],
         "title": "Envelope[LessonContent]"
+      },
+      "Envelope_LessonGenerationResult_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/LessonGenerationResult"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[LessonGenerationResult]"
       },
       "Envelope_LessonProgressData_": {
         "properties": {
@@ -3626,6 +3906,29 @@
         ],
         "title": "Envelope[TrajectoryRecordModel]"
       },
+      "Envelope_TutorResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/TutorResponse"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[TutorResponse]"
+      },
       "Envelope_dict_str__Any__": {
         "properties": {
           "success": {
@@ -3677,6 +3980,33 @@
           "request_id"
         ],
         "title": "Envelope[list[TopicDetails]]"
+      },
+      "Envelope_list_TutorHistoryItem__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TutorHistoryItem"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[list[TutorHistoryItem]]"
       },
       "ErrorDetails": {
         "properties": {
@@ -4671,9 +5001,37 @@
           },
           "content_source": {
             "type": "string",
-            "const": "curated_static",
+            "enum": [
+              "curated_static",
+              "azure_generated"
+            ],
             "title": "Content Source",
             "default": "curated_static"
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 160,
+            "title": "Subject",
+            "default": ""
+          },
+          "learning_level": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced"
+            ],
+            "title": "Learning Level",
+            "default": "intermediate"
+          },
+          "generation_source": {
+            "type": "string",
+            "enum": [
+              "curated",
+              "azure_openai"
+            ],
+            "title": "Generation Source",
+            "default": "curated"
           },
           "sections": {
             "items": {
@@ -4698,6 +5056,86 @@
           "sections"
         ],
         "title": "LessonContent"
+      },
+      "LessonGenerationRequest": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Request Id"
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Topic"
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Subject",
+            "default": "General learning"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced"
+            ],
+            "title": "Level",
+            "default": "beginner"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_id",
+          "topic"
+        ],
+        "title": "LessonGenerationRequest"
+      },
+      "LessonGenerationResult": {
+        "properties": {
+          "lesson": {
+            "$ref": "#/components/schemas/LessonContent"
+          },
+          "question_count": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 0.0,
+            "title": "Question Count"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lesson",
+          "question_count",
+          "notice"
+        ],
+        "title": "LessonGenerationResult"
       },
       "LessonProgressData": {
         "properties": {
@@ -7054,6 +7492,133 @@
           "status"
         ],
         "title": "TrajectoryStep"
+      },
+      "TutorHistoryItem": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "content",
+          "created_at"
+        ],
+        "title": "TutorHistoryItem"
+      },
+      "TutorRequest": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Session Id"
+          },
+          "turn_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Turn Id"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced"
+            ],
+            "title": "Level",
+            "default": "beginner"
+          },
+          "section_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "turn_id",
+          "message"
+        ],
+        "title": "TutorRequest"
+      },
+      "TutorResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Answer"
+          },
+          "source": {
+            "type": "string",
+            "const": "azure_supplementary_explanation",
+            "title": "Source"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "answer",
+          "source",
+          "notice"
+        ],
+        "title": "TutorResponse"
       },
       "ValidationError": {
         "properties": {

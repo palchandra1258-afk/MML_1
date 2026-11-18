@@ -28,7 +28,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-CURRENT_SCHEMA_CONTRACT = "migrations/0004_f10_1_learning_evidence"
+CURRENT_SCHEMA_CONTRACT = "migrations/0005_azure_interactive_learning"
 
 
 class Base(DeclarativeBase):
@@ -198,6 +198,49 @@ class StudentLearningRecommendation(Base):
     reason: Mapped[str] = mapped_column(String(1000), nullable=False)
     supporting_evidence_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     limitations: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False, default=utc_now)
+
+
+class StudentGeneratedLesson(Base):
+    """Immutable validated Azure-generated lesson version and grading key."""
+
+    __tablename__ = "studio_generated_lessons"
+    __table_args__ = (
+        UniqueConstraint("request_id", name="uq_studio_generated_request_id"),
+        Index("ix_studio_generated_topic_created", "topic_id", "created_at"),
+    )
+
+    lesson_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    topic_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    subject: Mapped[str] = mapped_column(String(160), nullable=False)
+    learning_level: Mapped[str] = mapped_column(String(24), nullable=False)
+    content_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    lesson_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    questions_data: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    usage_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[str] = mapped_column(String(40), nullable=False, default=utc_now)
+
+
+class StudentTutorInteraction(Base):
+    """Append-only tutor turns linked to the lesson study session."""
+
+    __tablename__ = "studio_tutor_interactions"
+    __table_args__ = (
+        ForeignKeyConstraint(["session_id"], ["studio_learning_sessions.session_id"], ondelete="RESTRICT"),
+        UniqueConstraint("session_id", "turn_id", "role", name="uq_studio_tutor_session_turn_role"),
+        Index("ix_studio_tutor_session_time", "session_id", "created_at"),
+    )
+
+    interaction_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    turn_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    lesson_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(String(5000), nullable=False)
+    usage_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[str] = mapped_column(String(40), nullable=False, default=utc_now)
 
 

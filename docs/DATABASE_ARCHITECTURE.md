@@ -4,7 +4,7 @@
 
 The initial database is SQLite through SQLAlchemy 2.x. The ORM uses portable `JSON`, string timestamps, primary/foreign keys, and unique constraints. A future PostgreSQL deployment can use a PostgreSQL SQLAlchemy URL and driver, then migrate with the same Alembic revisions. PostgreSQL runtime and migration testing are not part of this phase.
 
-The default local database is `data/application/mcp_ri.sqlite3`, ignored by Git. The API enables SQLite foreign-key enforcement. Alembic revision `0001_initial` creates the schema; application startup applies pending revisions, and `scripts/api/migrate_database.py` applies them explicitly.
+The default local database is `data/application/mcp_ri.sqlite3`, ignored by Git. The API enables SQLite foreign-key enforcement. Alembic revision `0001_initial` creates the schema. Review and apply revisions explicitly with `scripts/api/migrate_database.py`; application startup does not migrate or create tables unless `MCP_RI_AUTO_MIGRATE=true` is deliberately set.
 
 ## Tables
 

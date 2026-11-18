@@ -58,6 +58,7 @@ The Student Learning Studio is available at `/studio`, `/studio/explore`, `/stud
 Run the API from the repository root:
 
 ```bash
+PYTHONPATH=src .venv-api/bin/python scripts/api/migrate_database.py
 PYTHONPATH=src .venv-api/bin/uvicorn mcp_ri.api.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -68,7 +69,7 @@ cd frontend
 npm run dev
 ```
 
-The API automatically upgrades its configured SQLite database on startup. By default, CORS allows both `http://localhost:3000` and `http://127.0.0.1:3000`; `MCP_RI_CORS_ORIGINS` can replace that allowlist. Keep the API bound to loopback for this local demo; CORS is not authentication.
+Review the configured database before running the explicit migration command. API startup does not migrate or create application tables by default; `MCP_RI_AUTO_MIGRATE=true` opts into startup migration. By default, CORS allows both `http://localhost:3000` and `http://127.0.0.1:3000`; `MCP_RI_CORS_ORIGINS` can replace that allowlist. Keep the API bound to loopback for this local demo; CORS is not authentication.
 
 ## Verification
 

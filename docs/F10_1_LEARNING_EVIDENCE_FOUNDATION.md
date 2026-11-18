@@ -162,7 +162,7 @@ TestClient remains unusable inside the restricted sandbox due to the socket wake
 
 ## 12. Remaining F10.2 work
 
-F10.2 should review and verify the existing aggregate behavioral-state integration separately: expose state/evidence links through a synchronized client contract, provide a clearly labeled Student Studio evidence inspection path if desired, and validate append-only replay/recovery against the supported API test stack. It must continue to keep the demo profile separate from EdNet history. Cognitive estimation, representation delivery, and trajectory adaptation require validated concept mappings and remain later work.
+At F10.1 closure, the aggregate behavioral-state integration still required separate review. That follow-up is now documented and verified in [`F10_2_STUDENT_STUDIO_BEHAVIORAL_STATE.md`](F10_2_STUDENT_STUDIO_BEHAVIORAL_STATE.md). Studio cognitive estimation, representation delivery, and trajectory adaptation remain later work because their concept grounding and executable capability prerequisites are not established.
 
 ## Acceptance assessment
 

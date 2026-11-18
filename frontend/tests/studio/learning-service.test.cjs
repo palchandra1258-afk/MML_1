@@ -57,3 +57,22 @@ test("student behavioral summary services read only Student Studio state routes"
   ]);
   assert.ok(client.calls.every((call) => call.method === "GET"));
 });
+
+test("AI lesson and tutor requests use explicit, encoded backend routes", async () => {
+  const client = clientRecording();
+  const service = createLearningService(client);
+  const generation = { request_id: "request-1", topic: "Indian Mountains", subject: "Geography", level: "beginner" };
+  const tutor = { session_id: "session-1", turn_id: "turn-1", message: "Explain this simply", level: "beginner", section_id: "section-1" };
+  await service.generateLesson(generation);
+  await service.aiStatus();
+  await service.askTutor("lesson / id", tutor);
+  await service.tutorHistory("lesson / id", "session-1");
+  assert.deepEqual(client.calls.map(({ method, path }) => ({ method, path })), [
+    { method: "POST", path: "/studio/lessons/generate" },
+    { method: "GET", path: "/studio/ai/status" },
+    { method: "POST", path: "/studio/lessons/lesson%20%2F%20id/tutor" },
+    { method: "GET", path: "/studio/lessons/lesson%20%2F%20id/tutor/history?session_id=session-1" },
+  ]);
+  assert.deepEqual(client.calls[0].body, generation);
+  assert.deepEqual(client.calls[2].body, tutor);
+});

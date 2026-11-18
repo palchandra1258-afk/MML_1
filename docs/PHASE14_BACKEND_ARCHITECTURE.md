@@ -43,6 +43,6 @@ The Phase 9 evaluation reports model predictions unavailable; there is no applic
 
 CORS defaults to `http://localhost:3000` and `http://127.0.0.1:3000` and is configurable. Authentication is not implemented because no identity provider exists in the repository. The development server binds to loopback; deploy only behind an authenticated, access-controlled service. CORS is not authentication.
 
-Health reports each artifact index, the database, and module-specific capability. It reports `degraded` while a configured Phase 9–12 source is missing or unindexed. The server does not scan the 2.6 GB Phase 9 file on startup; run the explicit index command once. A source file whose size or modification time changes is treated as stale until reindexed.
+Health reports each artifact index, the database, and module-specific capability. It reports `degraded` while a configured Phase 9–12 source is missing or unindexed. Startup does not migrate the configured database by default. Review it and run `scripts/api/migrate_database.py` explicitly before `scripts/api/index_artifacts.py`; the index command no longer upgrades the schema itself. The server does not scan the 2.6 GB Phase 9 file on startup. A source file whose size or modification time changes is treated as stale until reindexed.
 
 See [API Design](API_DESIGN_SPECIFICATION.md), [Database Architecture](DATABASE_ARCHITECTURE.md), [Persistence Methodology](PERSISTENCE_METHODOLOGY.md), [Integration Report](BACKEND_INTEGRATION_REPORT.md), and [Evaluation](PHASE14_EVALUATION.md).

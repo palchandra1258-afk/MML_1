@@ -36,9 +36,34 @@ export type Lesson = {
   learning_objectives: LearningObjective[];
   estimated_minutes: number;
   content_version: string;
-  content_source: "curated_static";
+  content_source: "curated_static" | "azure_generated";
+  subject: string;
+  learning_level: "beginner" | "intermediate" | "advanced";
+  generation_source: "curated" | "azure_openai";
   sections: LessonSection[];
 };
+export type LessonGenerationResult = {
+  lesson: Lesson;
+  question_count: number;
+  usage: Record<string, number> | null;
+  notice: string;
+};
+export type StudentAIStatus = {
+  provider: "azure_openai";
+  configured: boolean;
+  missing_configuration: string[];
+  deployment_name: string | null;
+  timeout_seconds: number;
+  max_retries: number;
+  voice_deployment_used: false;
+};
+export type TutorAnswer = {
+  answer: string;
+  source: "azure_supplementary_explanation";
+  usage: Record<string, number> | null;
+  notice: string;
+};
+export type TutorMessage = { role: "user" | "assistant"; content: string; created_at: string };
 export type PublicQuestion = {
   question_id: string;
   lesson_id: string;
@@ -78,7 +103,26 @@ export type AnswerFeedback = {
   submitted_at: string;
   content_version: string;
   idempotent_replay: boolean;
+  processing?: { interaction: "saved"; evidence: "recorded"; behavioral_state: "updated"; behavioral_state_version: number } | null;
+  recommendation?: RecommendationDecision | null;
 };
+export type RecommendationDecision = {
+  status: "personalized" | "more_evidence_needed";
+  message: string;
+  source_behavioral_state_version: number | null;
+  recommendation: {
+    recommendation_id: string;
+    learner_id: string;
+    activity: { activity_type: "review_lesson" | "continue_lesson" | "additional_practice"; topic_id: string; lesson_id: string; title: string };
+    reason: string;
+    supporting_evidence_ids: string[];
+    source_behavioral_state_version: number;
+    created_at: string;
+    status: "current" | "superseded";
+    limitations: string[];
+  } | null;
+};
+export type StudentRecommendation = { profile: Profile; decision: RecommendationDecision };
 export type CourseProgress = {
   course_id: string;
   subject_id: string;
@@ -160,6 +204,10 @@ export function createLearningService(client: ApiClient) {
     search: (query: string, signal?: AbortSignal) => client.get<TopicDetails[]>(`/curriculum/search?q=${encodeURIComponent(query)}`, { signal }),
     topic: (topicId: string, signal?: AbortSignal) => client.get<TopicDetails>(`/curriculum/topics/${encodeURIComponent(topicId)}`, { signal }),
     lesson: (lessonId: string, signal?: AbortSignal) => client.get<Lesson>(`/curriculum/lessons/${encodeURIComponent(lessonId)}`, { signal }),
+    generateLesson: (body: { request_id: string; topic: string; subject?: string; level: "beginner" | "intermediate" | "advanced" }, signal?: AbortSignal) => client.post<LessonGenerationResult, typeof body>("/studio/lessons/generate", body, { signal }),
+    aiStatus: (signal?: AbortSignal) => client.get<StudentAIStatus>("/studio/ai/status", { signal }),
+    askTutor: (lessonId: string, body: { session_id: string; turn_id: string; message: string; level: "beginner" | "intermediate" | "advanced"; section_id?: string }, signal?: AbortSignal) => client.post<TutorAnswer, typeof body>(`/studio/lessons/${encodeURIComponent(lessonId)}/tutor`, body, { signal }),
+    tutorHistory: (lessonId: string, sessionId: string, signal?: AbortSignal) => client.get<TutorMessage[]>(`/studio/lessons/${encodeURIComponent(lessonId)}/tutor/history?session_id=${encodeURIComponent(sessionId)}`, { signal }),
     practice: (lessonId: string, signal?: AbortSignal) => client.get<Practice>(`/curriculum/lessons/${encodeURIComponent(lessonId)}/practice`, { signal }),
     profile: (signal?: AbortSignal) => client.get<Profile>("/studio/profile", { signal }),
     startSession: (lessonId: string, signal?: AbortSignal) => client.post<LearningSession, { lesson_id: string }>(`/studio/lessons/${encodeURIComponent(lessonId)}/sessions`, { lesson_id: lessonId }, { signal }),
@@ -167,6 +215,7 @@ export function createLearningService(client: ApiClient) {
     submitAnswer: (questionId: string, body: { submission_id: string; session_id: string; response: Record<string, unknown> }, signal?: AbortSignal) => client.post<AnswerFeedback, typeof body>(`/studio/questions/${encodeURIComponent(questionId)}/answer`, body, { signal }),
     progress: (signal?: AbortSignal) => client.get<StudentProgress>("/studio/progress", { signal }),
     behavioralState: (signal?: AbortSignal) => client.get<StudentBehavioralState>("/studio/behavioral-state", { signal }),
+    recommendation: (signal?: AbortSignal) => client.get<StudentRecommendation>("/studio/recommendation", { signal }),
     topicBehavioralState: (topicId: string, signal?: AbortSignal) => client.get<{
       profile: Profile; source: "student_studio_interactions"; topic_id: string;
       state: TopicBehavioralSummary | null; state_version: number | null;

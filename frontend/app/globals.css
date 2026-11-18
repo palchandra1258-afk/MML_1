@@ -1055,6 +1055,33 @@ button { color: inherit; }
 .research-integrity-footer strong { color: #5b7266; font-size: 9px; }
 .research-integrity-footer p { margin: 4px 0 0; color: #849189; font-size: 8px; line-height: 1.6; }
 
+.studio-generate-prompt { display: flex; grid-column: 1 / -1; align-items: end; flex-wrap: wrap; gap: 12px; padding: 16px; border-color: #dbe8e2; background: #fbfdfb; }
+.studio-generate-prompt > div { min-width: 220px; flex: 1; }
+.studio-generate-prompt h3 { margin: 5px 0; color: #405b53; font-size: 14px; }
+.studio-generate-prompt p, .studio-tutor > div p { margin: 4px 0 0; color: #7b8984; font-size: 9px; line-height: 1.65; }
+.studio-generate-prompt label { display: grid; gap: 5px; color: #61766d; font-size: 9px; }
+.studio-generate-prompt select, .studio-tutor textarea { border: 1px solid #dce7e1; border-radius: 8px; background: white; color: #435957; font: inherit; }
+.studio-generate-prompt select { min-width: 140px; padding: 9px; }
+.studio-tutor { display: grid; gap: 12px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #e9efeb; }
+.studio-tutor h3 { margin: 4px 0; color: #425b54; font-size: 14px; }
+.studio-tutor-history { display: grid; gap: 8px; max-height: 340px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.studio-tutor-message { max-width: 92%; padding: 10px 12px; border: 1px solid #e7eeea; border-radius: 9px; background: #fbfcfb; }
+.studio-tutor-message.is-user { justify-self: end; background: #f0f7f4; }
+.studio-tutor-message strong { color: #648078; font-size: 9px; text-transform: capitalize; }
+.studio-tutor-message p { margin: 4px 0 0; color: #586b65; font-size: 10px; line-height: 1.65; white-space: pre-wrap; }
+.studio-tutor form { display: flex; align-items: end; gap: 9px; }
+.studio-tutor textarea { flex: 1; min-width: 0; padding: 10px; resize: vertical; }
+.studio-tutor-error { color: #a34839; font-size: 9px; }
+.studio-checkpoint { display: grid; gap: 9px; margin: 18px 0; padding: 14px; border: 1px solid #e1eae5; border-radius: 10px; background: #fbfdfc; }
+.studio-checkpoint h3 { margin: 0; color: #425b54; font-size: 12px; line-height: 1.55; }
+.studio-checkpoint > .button { justify-self: start; }
+
+@media (max-width: 680px) {
+  .studio-generate-prompt { align-items: stretch; flex-direction: column; }
+  .studio-tutor form { align-items: stretch; flex-direction: column; }
+  .studio-tutor form .button { width: 100%; }
+}
+
 @media (max-width: 1050px) {
   .research-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .research-calibration-layout { grid-template-columns: minmax(0, 1fr); }

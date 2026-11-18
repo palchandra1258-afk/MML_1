@@ -10,8 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
+from sqlalchemy import inspect  # noqa: E402
 
 from mcp_ri.api.artifact_index import ARTIFACT_KEYS, index_artifact  # noqa: E402
 from mcp_ri.api.persistence import Database  # noqa: E402
@@ -24,9 +23,9 @@ def main() -> None:
     args = parser.parse_args()
     settings = APISettings.from_environment()
     db = Database(settings.database_url)
-    config = Config(str(ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    if not inspect(db.engine).has_table("artifact_files"):
+        db.dispose()
+        raise SystemExit("Application schema is missing. Review the configured database, then run scripts/api/migrate_database.py explicitly.")
     selected = args.artifacts or list(ARTIFACT_KEYS)
     try:
         with db.session_factory.begin() as session:

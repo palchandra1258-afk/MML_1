@@ -6,6 +6,7 @@ import json
 import math
 import uuid
 import hashlib
+from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ from mcp_ri.evidence.state_bridge import apply_interaction_evidence
 from mcp_ri.learner_state.state_builder import LearnerStateAccumulator
 
 from .errors import APIError
+from .azure_openai import AzureOpenAIClient
 from .learning_schemas import (
     AnswerFeedback,
     CurriculumCatalog,
@@ -42,7 +44,15 @@ from .learning_schemas import (
     TopicDetails,
     AnswerSubmission,
     CourseProgress,
+    GeneratedLessonDraft,
+    LessonGenerationRequest,
+    LessonGenerationResult,
+    TutorRequest,
+    TutorResponse,
+    TutorHistoryItem,
+    QuestionRecord,
 )
+from .settings import APISettings
 from .persistence import StudentStudioProfile as StudentStudioProfileRow
 from .persistence import StudentLearningAttempt as StudentLearningAttemptRow
 from .persistence import StudentLearningSession as StudentLearningSessionRow
@@ -50,6 +60,8 @@ from .persistence import StudentLessonProgress as StudentLessonProgressRow
 from .persistence import StudentBehavioralStateVersion as StudentBehavioralStateVersionRow
 from .persistence import StudentLearningRecommendation as StudentLearningRecommendationRow
 from .persistence import StudentStudioEvidenceRecord as StudentStudioEvidenceRecordRow
+from .persistence import StudentGeneratedLesson as StudentGeneratedLessonRow
+from .persistence import StudentTutorInteraction as StudentTutorInteractionRow
 from .persistence import utc_now
 
 
@@ -113,6 +125,10 @@ class LearningService:
 
     evidence_adapter = StudentStudioInteractionAdapter()
 
+    def __init__(self, settings: APISettings | None = None):
+        self.settings = settings or APISettings.from_environment()
+        self.azure = AzureOpenAIClient(self.settings)
+
     def _profile_row(self, session: Session) -> StudentStudioProfileRow:
         profile = session.get(StudentStudioProfileRow, PROFILE_ID)
         if profile is None:
@@ -173,30 +189,214 @@ class LearningService:
                             ).model_dump(mode="json")
         raise APIError(404, "TOPIC_NOT_FOUND", "The requested topic is not available in the curated curriculum.")
 
-    def lesson(self, lesson_id: str) -> dict[str, Any]:
+    def lesson(self, lesson_id: str, session: Session | None = None) -> dict[str, Any]:
         lesson = next((item for item in curriculum().lessons if item.lesson_id == lesson_id), None)
-        if lesson is None:
-            raise APIError(404, "LESSON_NOT_FOUND", "The requested lesson is not available in the curated curriculum.")
-        return lesson.model_dump(mode="json")
+        if lesson is not None:
+            return lesson.model_dump(mode="json")
+        generated = session.get(StudentGeneratedLessonRow, lesson_id) if session is not None else None
+        if generated is None:
+            raise APIError(404, "LESSON_NOT_FOUND", "The requested lesson is not available.")
+        return generated.lesson_data
 
-    def practice(self, lesson_id: str) -> dict[str, Any]:
+    def ai_status(self) -> dict[str, Any]:
+        return self.azure.diagnostics()
+
+    def generate_lesson(self, session: Session, body: LessonGenerationRequest) -> dict[str, Any]:
+        request_hash = hashlib.sha256(json.dumps(body.model_dump(exclude={"request_id"}), sort_keys=True).encode()).hexdigest()
+        prior = session.scalar(select(StudentGeneratedLessonRow).where(
+            StudentGeneratedLessonRow.request_id == body.request_id,
+        ))
+        if prior is not None:
+            if prior.request_hash != request_hash:
+                raise APIError(409, "GENERATION_ID_REUSED", "This generation request ID was already used with different inputs.")
+            return self._generation_result(prior, notice="Previously generated lesson returned for this request.")
+
+        # Prefer exact curated content when the student explicitly requests generation.
+        curated = next((item for item in curriculum().lessons
+                        if item.title.casefold().strip() == body.topic.casefold().strip()
+                        or item.topic_id.casefold().strip() == body.topic.casefold().strip()), None)
+        if curated is not None:
+            count = sum(item.lesson_id == curated.lesson_id for item in curriculum().questions)
+            return LessonGenerationResult(
+                lesson=curated,
+                question_count=count,
+                notice="A curated lesson already covers this topic; no Azure request was made.",
+            ).model_dump(mode="json")
+
+        system = (
+            "You are an educational lesson author. Return only a JSON object with keys title, introduction, "
+            "estimated_minutes, learning_objectives, sections, questions. Use the requested level and clear, "
+            "accurate teaching. Use 3-8 objectives, 3-8 short sections, and exactly 5 assessable questions. "
+            "Sections use section_id, title, required, blocks. Blocks must be heading, paragraph, definition, "
+            "formula, worked_example, key_point, or misconception. Questions use question_type, prompt, options, "
+            "grading, expected_answer, explanation, difficulty. Grading is either {kind: choice, correct_option_ids} "
+            "or {kind: numeric, expected_value, absolute_tolerance, relative_tolerance}. Choice questions need 4 "
+            "distinct options with exactly one correct answer. Numerical grading must be independently checkable. "
+            "Do not include citations or claims of external verification. Never include keys outside the question objects."
+        )
+        user = json.dumps({"topic": body.topic.strip(), "subject": body.subject.strip(), "learning_level": body.level,
+                           "requirements": "Include objectives, an introduction, detailed concept sections, formulas/derivations where relevant, examples, and five practice questions."})
+        result = self.azure.chat_json(system=system, user=user, max_tokens=6500)
+        try:
+            draft = GeneratedLessonDraft.model_validate(json.loads(result.content))
+        except Exception as exc:
+            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned lesson content that failed validation.") from exc
+        if len({section.section_id for section in draft.sections}) != len(draft.sections):
+            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned duplicate lesson section IDs.")
+        objective_ids = {objective.objective_id for objective in draft.learning_objectives}
+        if len(objective_ids) != len(draft.learning_objectives):
+            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned duplicate learning objective IDs.")
+
+        token = uuid.uuid4().hex
+        topic_id = f"ai-topic-{token}"
+        lesson_id = f"ai-lesson-{token}"
+        course_id = f"ai-course-{hashlib.sha256((body.subject + body.topic).encode()).hexdigest()[:12]}"
+        content_version = f"azure-{token[:12]}"
+        lesson = LessonContent(
+            lesson_id=lesson_id, topic_id=topic_id, course_id=course_id, title=draft.title,
+            introduction=draft.introduction, learning_objectives=draft.learning_objectives,
+            estimated_minutes=draft.estimated_minutes, content_version=content_version,
+            content_source="azure_generated", subject=body.subject.strip(), learning_level=body.level,
+            generation_source="azure_openai", sections=draft.sections,
+        )
+        questions = []
+        for draft_question in draft.questions:
+            option_ids = {option.option_id for option in draft_question.options}
+            if draft_question.grading.kind == "choice":
+                correct = set(draft_question.grading.correct_option_ids)
+                if (draft_question.question_type not in {"single_choice", "multiple_choice"}
+                        or len(option_ids) != len(draft_question.options) or not correct or not correct <= option_ids
+                        or (draft_question.question_type == "single_choice" and len(correct) != 1)):
+                    raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned an inconsistent choice question.")
+            elif draft_question.question_type != "numeric" or draft_question.options:
+                raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned an inconsistent numeric question.")
+            questions.append(QuestionRecord(
+                question_id=f"ai-question-{uuid.uuid4().hex}", lesson_id=lesson_id, topic_id=topic_id,
+                objective_id=draft.learning_objectives[len(questions) % len(draft.learning_objectives)].objective_id,
+                question_type=draft_question.question_type, prompt=draft_question.prompt,
+                options=draft_question.options, grading=draft_question.grading,
+                expected_answer=draft_question.expected_answer, explanation=draft_question.explanation,
+                difficulty=draft_question.difficulty, content_version=content_version,
+            ))
+        row = StudentGeneratedLessonRow(
+            lesson_id=lesson_id, request_id=body.request_id, request_hash=request_hash,
+            topic_id=topic_id, subject=body.subject.strip(), learning_level=body.level,
+            content_version=content_version, lesson_data=lesson.model_dump(mode="json"),
+            questions_data=[item.model_dump(mode="json") for item in questions],
+            usage_data=result.usage, created_at=utc_now(),
+        )
+        session.add(row)
+        session.flush()
+        return self._generation_result(row, notice="AI-generated lesson saved. Review it as generated learning material.")
+
+    @staticmethod
+    def _generation_result(row: StudentGeneratedLessonRow, *, notice: str) -> dict[str, Any]:
+        lesson = LessonContent.model_validate(row.lesson_data)
+        return LessonGenerationResult(
+            lesson=lesson, question_count=len(row.questions_data), usage=row.usage_data, notice=notice,
+        ).model_dump(mode="json")
+
+    def tutor(self, session: Session, lesson_id: str, body: TutorRequest) -> dict[str, Any]:
+        session_row = session.get(StudentLearningSessionRow, body.session_id)
+        if session_row is None or session_row.profile_id != PROFILE_ID or session_row.lesson_id != lesson_id:
+            raise APIError(409, "SESSION_MISMATCH", "The learning session does not belong to this lesson.")
+        lesson, _, _, _ = self._lesson_and_course(session, lesson_id)
+        if body.section_id is not None and not any(item.section_id == body.section_id for item in lesson.sections):
+            raise APIError(422, "INVALID_TUTOR_SECTION", "The requested section is not part of this lesson.")
+        section = next((item for item in lesson.sections if item.section_id == body.section_id), None) if body.section_id else None
+        request_hash = hashlib.sha256(json.dumps({"message": body.message.strip(), "level": body.level,
+                                                  "section_id": body.section_id}, sort_keys=True).encode()).hexdigest()
+        prior = session.scalar(select(StudentTutorInteractionRow).where(
+            StudentTutorInteractionRow.session_id == body.session_id,
+            StudentTutorInteractionRow.turn_id == body.turn_id,
+            StudentTutorInteractionRow.role == "assistant",
+        ))
+        if prior is not None:
+            if prior.request_hash != request_hash:
+                raise APIError(409, "TUTOR_TURN_ID_REUSED", "This tutor turn ID was already used with different inputs.")
+            return TutorResponse(answer=prior.content, source="azure_supplementary_explanation",
+                                 usage=prior.usage_data,
+                                 notice="Supplementary explanation generated for this lesson; review it critically.").model_dump(mode="json")
+        recent = list(session.scalars(select(StudentTutorInteractionRow).where(
+            StudentTutorInteractionRow.session_id == body.session_id,
+        ).order_by(StudentTutorInteractionRow.created_at.desc()).limit(20)))
+        recent.reverse()
+        history = [{"role": row.role, "content": row.content} for row in recent]
+        lesson_context = lesson.model_dump(mode="json")
+        system = (
+            "You are a patient educational tutor. Answer at the learner's requested level, use the supplied lesson "
+            "and section as the main context, and say clearly when the lesson does not support a claim. Do not claim "
+            "independent verification or invent citations. Never reveal or infer hidden grading keys or answers to "
+            "unsubmitted assessment questions. This is supplementary generated explanation, not a change to the saved lesson. "
+            "Return JSON only with one string key named answer."
+        )
+        user = json.dumps({"learning_level": body.level, "lesson": lesson_context,
+                           "current_section": None if section is None else section.model_dump(mode="json"),
+                           "conversation": history, "student_question": body.message.strip()})
+        result = self.azure.chat_json(system=system, user=user, max_tokens=1200)
+        try:
+            answer = json.loads(result.content)["answer"]
+            if not isinstance(answer, str) or not answer.strip() or len(answer) > 5000:
+                raise ValueError("invalid answer")
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError):
+            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned an invalid tutor response.") from None
+        now = utc_now()
+        assistant_time = (datetime.fromisoformat(now) + timedelta(microseconds=1)).isoformat()
+        session.add_all([
+            StudentTutorInteractionRow(interaction_id=str(uuid.uuid4()), session_id=body.session_id,
+                                       turn_id=body.turn_id, request_hash=request_hash, lesson_id=lesson_id,
+                                       role="user", content=body.message.strip(), created_at=now),
+            StudentTutorInteractionRow(interaction_id=str(uuid.uuid4()), session_id=body.session_id,
+                                       turn_id=body.turn_id, request_hash=request_hash, lesson_id=lesson_id,
+                                       role="assistant", content=answer.strip(), usage_data=result.usage, created_at=assistant_time),
+        ])
+        session.flush()
+        return TutorResponse(answer=answer.strip(), source="azure_supplementary_explanation",
+                             usage=result.usage, notice="Supplementary explanation generated for this lesson; review it critically.").model_dump(mode="json")
+
+    def tutor_history(self, session: Session, lesson_id: str, session_id: str) -> list[dict[str, Any]]:
+        study_session = session.get(StudentLearningSessionRow, session_id)
+        if study_session is None or study_session.profile_id != PROFILE_ID or study_session.lesson_id != lesson_id:
+            raise APIError(409, "SESSION_MISMATCH", "The learning session does not belong to this lesson.")
+        rows = session.scalars(select(StudentTutorInteractionRow).where(
+            StudentTutorInteractionRow.session_id == session_id,
+        ).order_by(StudentTutorInteractionRow.created_at.asc(), StudentTutorInteractionRow.interaction_id.asc()))
+        return [TutorHistoryItem(role=row.role, content=row.content, created_at=row.created_at).model_dump(mode="json")
+                for row in rows]
+
+    def practice(self, lesson_id: str, session: Session | None = None) -> dict[str, Any]:
         lesson = next((item for item in curriculum().lessons if item.lesson_id == lesson_id), None)
         if lesson is None:
-            raise APIError(404, "LESSON_NOT_FOUND", "The requested lesson is not available in the curated curriculum.")
+            generated = session.get(StudentGeneratedLessonRow, lesson_id) if session is not None else None
+            if generated is None:
+                raise APIError(404, "LESSON_NOT_FOUND", "The requested lesson is not available.")
+            lesson = LessonContent.model_validate(generated.lesson_data)
+            records = [QuestionRecord.model_validate(item) for item in generated.questions_data]
+        else:
+            records = [item for item in curriculum().questions if item.lesson_id == lesson_id]
         questions = [PublicQuestion.model_validate(item.model_dump(exclude={"grading", "expected_answer", "explanation"})).model_dump(mode="json")
-                     for item in curriculum().questions if item.lesson_id == lesson_id]
+                     for item in records]
         return QuestionPractice(lesson_id=lesson_id, content_version=lesson.content_version, questions=questions).model_dump(mode="json")
 
-    def _question(self, question_id: str):
+    def _question(self, question_id: str, session: Session):
         question = next((item for item in curriculum().questions if item.question_id == question_id), None)
         if question is None:
+            for generated in session.scalars(select(StudentGeneratedLessonRow)):
+                item = next((item for item in generated.questions_data if item.get("question_id") == question_id), None)
+                if item is not None:
+                    return QuestionRecord.model_validate(item)
             raise APIError(404, "QUESTION_NOT_FOUND", "The requested practice question is not available.")
         return question
 
-    def _lesson_and_course(self, lesson_id: str) -> tuple[LessonContent, str, str, str]:
+    def _lesson_and_course(self, session: Session, lesson_id: str) -> tuple[LessonContent, str, str, str]:
         lesson = next((item for item in curriculum().lessons if item.lesson_id == lesson_id), None)
         if lesson is None:
-            raise APIError(404, "LESSON_NOT_FOUND", "The requested lesson is not available in the curated curriculum.")
+            generated = session.get(StudentGeneratedLessonRow, lesson_id)
+            if generated is None:
+                raise APIError(404, "LESSON_NOT_FOUND", "The requested lesson is not available.")
+            lesson = LessonContent.model_validate(generated.lesson_data)
+            subject_id = f"ai-subject-{hashlib.sha256(generated.subject.encode()).hexdigest()[:12]}"
+            return lesson, lesson.course_id, lesson.topic_id, subject_id
         for subject in curriculum().subjects:
             for course in subject.courses:
                 for unit in course.units:
@@ -230,7 +430,7 @@ class LearningService:
         ).model_dump(mode="json")
 
     def start_session(self, session: Session, lesson_id: str) -> dict[str, Any]:
-        lesson, _, _, _ = self._lesson_and_course(lesson_id)
+        lesson, _, _, _ = self._lesson_and_course(session, lesson_id)
         self._profile_row(session)
         progress_row = session.get(StudentLessonProgressRow, (PROFILE_ID, lesson_id))
         now = utc_now()
@@ -248,7 +448,7 @@ class LearningService:
         else:
             latest.last_activity_at = now
         if progress_row is None:
-            _, course_id, topic_id, _ = self._lesson_and_course(lesson_id)
+            _, course_id, topic_id, _ = self._lesson_and_course(session, lesson_id)
             progress_row = StudentLessonProgressRow(
                 profile_id=PROFILE_ID, lesson_id=lesson_id, course_id=course_id, topic_id=topic_id,
                 content_version=lesson.content_version, current_section_id=lesson.sections[0].section_id,
@@ -262,7 +462,7 @@ class LearningService:
         ).model_dump(mode="json")
 
     def save_progress(self, session: Session, lesson_id: str, body: Any) -> dict[str, Any]:
-        lesson, course_id, topic_id, _ = self._lesson_and_course(lesson_id)
+        lesson, course_id, topic_id, _ = self._lesson_and_course(session, lesson_id)
         row_session = session.get(StudentLearningSessionRow, body.session_id)
         if row_session is None or row_session.profile_id != PROFILE_ID or row_session.lesson_id != lesson_id:
             raise APIError(409, "SESSION_MISMATCH", "The learning session does not belong to this lesson.")
@@ -320,8 +520,8 @@ class LearningService:
         raise APIError(422, "UNSUPPORTED_QUESTION", "This question type does not have an automatic evaluator.")
 
     def submit_answer(self, session: Session, question_id: str, body: AnswerSubmission) -> dict[str, Any]:
-        question = self._question(question_id)
-        lesson, course_id, topic_id, subject_id = self._lesson_and_course(question.lesson_id)
+        question = self._question(question_id, session)
+        lesson, course_id, topic_id, subject_id = self._lesson_and_course(session, question.lesson_id)
         self._profile_row(session)
         existing = session.scalar(select(StudentLearningAttemptRow).where(
             StudentLearningAttemptRow.profile_id == PROFILE_ID,
@@ -430,7 +630,9 @@ class LearningService:
 
     def progress(self, session: Session) -> dict[str, Any]:
         self._profile_row(session)
-        lessons_by_id = {lesson.lesson_id: lesson for lesson in curriculum().lessons}
+        generated_rows = session.scalars(select(StudentGeneratedLessonRow)).all()
+        generated_lessons = [LessonContent.model_validate(row.lesson_data) for row in generated_rows]
+        lessons_by_id = {lesson.lesson_id: lesson for lesson in [*curriculum().lessons, *generated_lessons]}
         rows = session.scalars(select(StudentLessonProgressRow).where(
             StudentLessonProgressRow.profile_id == PROFILE_ID,
         ).order_by(StudentLessonProgressRow.updated_at.desc())).all()
@@ -441,6 +643,10 @@ class LearningService:
             course.course_id: (subject.subject_id, course.title)
             for subject in curriculum().subjects for course in subject.courses
         }
+        for generated in generated_rows:
+            lesson = lessons_by_id[generated.lesson_id]
+            subject_id = f"ai-subject-{hashlib.sha256(generated.subject.encode()).hexdigest()[:12]}"
+            course_refs[lesson.course_id] = (subject_id, generated.subject)
         attempts_by_course: dict[str, list[StudentLearningAttemptRow]] = {}
         for attempt in attempts:
             attempts_by_course.setdefault(attempt.course_id, []).append(attempt)
@@ -449,7 +655,7 @@ class LearningService:
             rows_by_course.setdefault(row.course_id, []).append(row)
         courses: list[dict[str, Any]] = []
         for course_id, (subject_id, title) in course_refs.items():
-            lessons = [lesson for lesson in curriculum().lessons if lesson.course_id == course_id]
+            lessons = [lesson for lesson in lessons_by_id.values() if lesson.course_id == course_id]
             course_rows = rows_by_course.get(course_id, [])
             statuses = [self._progress(session, lesson)["status"] for lesson in lessons]
             completed = sum(status == "completed" for status in statuses)
@@ -470,15 +676,15 @@ class LearningService:
                 correct_attempts=correct,
                 response_accuracy=correct / len(course_attempts) if course_attempts else None,
             ).model_dump(mode="json"))
-        all_status = [self._progress(session, lesson)["status"] for lesson in curriculum().lessons]
+        all_status = [self._progress(session, lesson)["status"] for lesson in lessons_by_id.values()]
         summary = StudentProgressSummary(
             courses_started=sum(bool(rows_by_course.get(course_id)) for course_id in course_refs),
             topics_started=len({row.topic_id for row in rows}),
             lessons_started=len(rows),
             lessons_completed=sum(status == "completed" for status in all_status),
             lessons_needing_review=sum(status == "needs_review" for status in all_status),
-            lesson_sections_completed=sum(len(self._progress(session, lessons_by_id[row.lesson_id])["completed_section_ids"]) for row in rows),
-            lesson_sections_total=sum(len([section for section in lessons_by_id[row.lesson_id].sections if section.required]) for row in rows),
+            lesson_sections_completed=sum(len(self._progress(session, lessons_by_id[row.lesson_id])["completed_section_ids"]) for row in rows if row.lesson_id in lessons_by_id),
+            lesson_sections_total=sum(len([section for section in lessons_by_id[row.lesson_id].sections if section.required]) for row in rows if row.lesson_id in lessons_by_id),
             practice_attempts=len(attempts),
             correct_attempts=sum(attempt.is_correct for attempt in attempts),
             incorrect_attempts=sum(not attempt.is_correct for attempt in attempts),
@@ -495,13 +701,14 @@ class LearningService:
     def history(self, session: Session, *, limit: int, offset: int) -> dict[str, Any]:
         self._profile_row(session)
         lesson_titles = {lesson.lesson_id: lesson.title for lesson in curriculum().lessons}
+        lesson_titles.update({row.lesson_id: row.lesson_data["title"] for row in session.scalars(select(StudentGeneratedLessonRow))})
         course_by_id = {course.course_id: subject.subject_id for subject in curriculum().subjects for course in subject.courses}
         items: list[dict[str, Any]] = []
         sessions = session.scalars(select(StudentLearningSessionRow).where(
             StudentLearningSessionRow.profile_id == PROFILE_ID,
         )).all()
         for row in sessions:
-            _, course_id, topic_id, _ = self._lesson_and_course(row.lesson_id)
+            _, course_id, topic_id, _ = self._lesson_and_course(session, row.lesson_id)
             items.append(LearningHistoryEntry(
                 entry_id=row.session_id,
                 event_type="lesson_started",
@@ -509,7 +716,7 @@ class LearningService:
                 course_id=course_id,
                 topic_id=topic_id,
                 lesson_id=row.lesson_id,
-                lesson_title=lesson_titles[row.lesson_id],
+                lesson_title=lesson_titles.get(row.lesson_id, row.lesson_id),
                 content_version=row.content_version,
             ).model_dump(mode="json"))
         attempts = session.scalars(select(StudentLearningAttemptRow).where(
@@ -523,7 +730,7 @@ class LearningService:
                 course_id=row.course_id,
                 topic_id=row.topic_id,
                 lesson_id=row.lesson_id,
-                lesson_title=lesson_titles[row.lesson_id],
+                lesson_title=lesson_titles.get(row.lesson_id, row.lesson_id),
                 question_id=row.question_id,
                 is_correct=row.is_correct,
                 attempt_number=row.attempt_number,
@@ -866,11 +1073,16 @@ class LearningService:
             return self._recommendation_data(existing, state_version)
 
         lesson = next((item for item in curriculum().lessons if item.lesson_id == attempt.lesson_id), None)
+        generated = None if lesson is not None else session.get(StudentGeneratedLessonRow, attempt.lesson_id)
+        if generated is not None:
+            lesson = LessonContent.model_validate(generated.lesson_data)
         if lesson is None:
             return self._fallback_recommendation(state_version)
         progress = self._progress(session, lesson)
         topic_title = next((topic.title for subject in curriculum().subjects for course in subject.courses
                             for unit in course.units for topic in unit.topics if topic.topic_id == attempt.topic_id), None)
+        if topic_title is None and generated is not None:
+            topic_title = lesson.title
         if topic_title is None:
             return self._fallback_recommendation(state_version)
 
@@ -895,6 +1107,8 @@ class LearningService:
                 question.lesson_id == attempt.lesson_id and question.question_id not in prior_questions
                 for question in curriculum().questions
             )
+            if generated is not None:
+                available_practice = any(item.get("question_id") not in prior_questions for item in generated.questions_data)
             if not available_practice:
                 return self._fallback_recommendation(state_version)
             activity_type = "additional_practice"

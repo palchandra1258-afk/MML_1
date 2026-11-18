@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import uuid
 from contextlib import asynccontextmanager
@@ -56,22 +57,28 @@ def _run_migrations(database_url: str) -> None:
     command.upgrade(config, "head")
 
 
-def create_app(settings: APISettings | None = None, *, migrate_on_start: bool = True) -> FastAPI:
+def create_app(
+    settings: APISettings | None = None,
+    *,
+    migrate_on_start: bool | None = None,
+    create_schema_on_start: bool = False,
+) -> FastAPI:
     active_settings = settings or APISettings.from_environment()
+    auto_migrate = migrate_on_start if migrate_on_start is not None else os.getenv("MCP_RI_AUTO_MIGRATE", "false").casefold() == "true"
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         database = Database(active_settings.database_url)
         application.state.database = database
-        if migrate_on_start:
+        if auto_migrate:
             _run_migrations(active_settings.database_url)
             database.ensure_schema_metadata()
-        else:
+        elif create_schema_on_start:
             database.create_schema()
         application.state.artifact_service = ArtifactService(active_settings)
         application.state.research_service = ResearchService(application.state.artifact_service)
         application.state.trajectory_service = TrajectoryService(application.state.artifact_service)
-        application.state.learning_service = LearningService()
+        application.state.learning_service = LearningService(active_settings)
         try:
             yield
         finally:

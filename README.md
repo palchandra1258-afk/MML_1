@@ -96,11 +96,18 @@ Phase 14 adds a FastAPI service under `/api/v1`, generated OpenAPI contracts, re
 ```bash
 python3 -m venv .venv-api
 .venv-api/bin/python -m pip install -r requirements-api.txt
+PYTHONPATH=src .venv-api/bin/python scripts/api/migrate_database.py
 PYTHONPATH=src .venv-api/bin/python scripts/api/index_artifacts.py
 PYTHONPATH=src .venv-api/bin/uvicorn mcp_ri.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+Review the configured database before running the explicit migration command. API startup does not migrate or create application tables by default; `MCP_RI_AUTO_MIGRATE=true` opts into startup migration.
+
 The artifact index is a one-time sequential read of configured JSONL outputs; it stores IDs, timestamps, links, and byte offsets only. Health remains degraded until indexing finishes. Local API and frontend integration details are in [`docs/PHASE14_BACKEND_ARCHITECTURE.md`](docs/PHASE14_BACKEND_ARCHITECTURE.md) and [`shared/api-contracts/README.md`](shared/api-contracts/README.md).
+
+## F11 Azure interactive learning
+
+The Student Learning Studio supports explicit Azure lesson generation for topics without an exact curated lesson, generated lesson persistence, session-scoped tutoring, and server-side grading/evidence. See [`docs/F11_AZURE_INTERACTIVE_LEARNING_PLATFORM.md`](docs/F11_AZURE_INTERACTIVE_LEARNING_PLATFORM.md) for environment configuration, API routes, migration, tests, limits, and remaining work. Azure settings are backend-only environment variables; no secrets belong in frontend configuration or committed environment files.
 
 ## F9 Student Learning Studio
 

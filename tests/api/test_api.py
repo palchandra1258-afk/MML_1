@@ -5,7 +5,7 @@ from pathlib import Path
 
 import jsonschema
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select
+from sqlalchemy import event, inspect, select
 
 from mcp_ri.api.main import create_app
 from mcp_ri.api.settings import APISettings
@@ -56,7 +56,7 @@ def test_database_initializes_with_alembic_migration(tmp_path):
         phase11_states_path=missing,
         phase12_plans_path=missing,
     )
-    app = create_app(settings)
+    app = create_app(settings, migrate_on_start=True)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/api/v1/health")
         assert response.status_code == 200
@@ -66,7 +66,24 @@ def test_database_initializes_with_alembic_migration(tmp_path):
                 __import__("sqlalchemy").text("SELECT value FROM app_metadata WHERE key='schema_contract'")
             ).scalar_one()
             assert version == []
-            assert contract == "migrations/0004_f10_1_learning_evidence"
+            assert contract == "migrations/0005_azure_interactive_learning"
+
+
+def test_api_startup_does_not_create_or_migrate_configured_database_by_default(tmp_path):
+    missing = tmp_path / "not-present.jsonl"
+    settings = APISettings(
+        database_url=f"sqlite:///{tmp_path / 'untouched.sqlite3'}",
+        cors_origins=("http://localhost:3000",),
+        phase9_states_path=missing,
+        phase10_evidence_path=missing,
+        phase10_groups_path=missing,
+        phase11_states_path=missing,
+        phase12_plans_path=missing,
+    )
+    app = create_app(settings)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.get("/api/v1/health").status_code == 200
+        assert inspect(app.state.database.engine).get_table_names() == []
 
 
 def test_learner_list_and_detail_do_not_invent_data(api):

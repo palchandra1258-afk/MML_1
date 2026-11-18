@@ -23,7 +23,7 @@ There are no curriculum, lesson, learning-session, answer-attempt, student-progr
 
 `src/mcp_ri/api/persistence.py` defines SQLAlchemy tables for application metadata, generic learner references, artifact file/record indexes, trajectory snapshots and versions, append-only trajectory history events, diversions, and context snapshots. Alembic revision `0001_initial` creates this schema. There are no tables for curriculum state, student profiles, lesson progress, sessions, or practice attempts.
 
-The API initializes/migrates its configured database at startup. The default local database is `data/application/mcp_ri.sqlite3`; tests use temporary SQLite databases. Any F9 schema change must be additive in a new migration and preserve the current tables and research records.
+Database migrations are additive and should preserve current tables and research records. API startup no longer creates or migrates the configured database by default; review and apply migrations with `scripts/api/migrate_database.py`, or explicitly opt into startup migration with `MCP_RI_AUTO_MIGRATE=true`. Tests use temporary SQLite databases.
 
 ### Evidence and behavioral state
 

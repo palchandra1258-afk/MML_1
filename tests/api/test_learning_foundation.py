@@ -26,13 +26,13 @@ def test_additive_learning_migration_keeps_research_tables_and_adds_studio_table
         phase11_states_path=missing,
         phase12_plans_path=missing,
     )
-    app = create_app(settings)
+    app = create_app(settings, migrate_on_start=True)
     with TestClient(app) as client:
         assert client.get("/api/v1/health").status_code == 200
         names = set(inspect(app.state.database.engine).get_table_names())
-        assert {"trajectories", "artifact_records", "studio_profiles", "studio_learning_sessions", "studio_lesson_progress", "studio_learning_attempts", "studio_evidence_records"} <= names
+        assert {"trajectories", "artifact_records", "studio_profiles", "studio_learning_sessions", "studio_lesson_progress", "studio_learning_attempts", "studio_evidence_records", "studio_generated_lessons", "studio_tutor_interactions"} <= names
         with app.state.database.session() as session:
-            assert session.execute(text("SELECT value FROM app_metadata WHERE key='schema_contract'")).scalar_one() == "migrations/0004_f10_1_learning_evidence"
+            assert session.execute(text("SELECT value FROM app_metadata WHERE key='schema_contract'")).scalar_one() == "migrations/0005_azure_interactive_learning"
 
 
 def test_student_activity_storage_is_separate_and_attempts_preserve_submission_and_evidence(api):
