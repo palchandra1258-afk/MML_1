@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
+from types import SimpleNamespace
+
+from sqlalchemy import select
 
 from mcp_ri.api.azure_openai import AzureResult
+from mcp_ri.api.errors import APIError
+from mcp_ri.api.persistence import StudentGeneratedLesson
+from mcp_ri.api.text_generation import GeminiClient, MockTextGenerator
 
 
 def lesson_payload():
@@ -99,13 +106,115 @@ def test_curated_precedence_dynamic_lesson_persistence_grading_evidence_and_tuto
     assert [item["role"] for item in history.json()["data"]] == ["user", "assistant"]
 
 
-def test_missing_azure_configuration_returns_explicit_missing_names(api):
+def test_mock_provider_generation_persists_and_retrieves_explicit_test_content(api, monkeypatch):
+    service = api.app.state.learning_service
+    monkeypatch.setattr(service, "generator", MockTextGenerator())
+    monkeypatch.setattr(service, "provider", SimpleNamespace(name="mock"))
     response = api.client.post("/api/v1/studio/lessons/generate", json={
-        "request_id": "ai-missing-config", "topic": "Indian Mountains", "subject": "Geography", "level": "beginner",
+        "request_id": "mock-provider-generation", "topic": "A topic not in the catalog",
+        "subject": "Geography", "level": "beginner",
+    })
+    assert response.status_code == 200, response.text
+    result = response.json()["data"]
+    lesson = result["lesson"]
+    assert lesson["generation_source"] == "mock"
+    assert lesson["content_source"] == "mock_generated"
+    assert "not AI generated" in result["notice"]
+    assert api.client.get(f"/api/v1/curriculum/lessons/{lesson['lesson_id']}").json()["data"] == lesson
+
+
+def test_gemini_status_is_configuration_only_and_does_not_expose_api_key(api, monkeypatch):
+    configured = replace(api.settings, ai_provider="gemini", gemini_api_key="private-test-value",
+                         gemini_model="configured-model")
+    service = api.app.state.learning_service
+    monkeypatch.setattr(service, "generator", GeminiClient(configured))
+    response = api.client.get("/api/v1/studio/ai/status")
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["provider"] == "gemini"
+    assert data["generation_available"] is True
+    assert data["model"] == "configured-model"
+    assert "private-test-value" not in response.text
+
+
+def test_missing_azure_configuration_returns_explicit_missing_names(api):
+    def should_not_open_connection(*_args, **_kwargs):
+        raise AssertionError("Unavailable provider must not be invoked")
+
+    service = api.app.state.learning_service
+    # The fixture intentionally has no Azure credentials; fail locally before any provider I/O.
+    service.azure._opener = should_not_open_connection
+    response = api.client.post("/api/v1/studio/lessons/generate", json={
+        "request_id": "ai-missing-config", "topic": "Geography", "subject": "Geography", "level": "beginner",
     })
     assert response.status_code == 503
     error = response.json()["error"]
     assert error["code"] == "AI_NOT_CONFIGURED"
     assert "AZURE_OPENAI_ENDPOINT" in error["message"]
     assert "AZURE_OPENAI_API_KEY" in error["message"]
+
+    status_response = api.client.get("/api/v1/studio/ai/status")
+    assert status_response.status_code == 200
+    status = status_response.json()["data"]
+    assert status["configured"] is False
+    assert status["generation_available"] is False
+    assert "AZURE_OPENAI_API_KEY" in status["availability_reason"]
+
+
+def test_invalid_provider_lesson_is_rejected_without_persistence(api, monkeypatch):
+    service = api.app.state.learning_service
+    calls = []
+
+    def invalid_response(**_kwargs):
+        calls.append(1)
+        return AzureResult("not valid json", None, "text-deployment")
+
+    monkeypatch.setattr(service.azure, "chat_json", invalid_response)
+    response = api.client.post("/api/v1/studio/lessons/generate", json={
+        "request_id": "invalid-geography-draft", "topic": "Geography", "subject": "Geography", "level": "beginner",
+    })
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "AI_CONTENT_INVALID"
+    assert calls == [1]
+    with api.app.state.database.session_factory() as session:
+        assert session.scalars(select(StudentGeneratedLesson)).all() == []
+
+
+def test_provider_timeout_is_returned_safely_without_persistence(api, monkeypatch):
+    service = api.app.state.learning_service
+    calls = []
+
+    def timeout(**_kwargs):
+        calls.append(1)
+        raise APIError(504, "AI_TIMEOUT", "Azure OpenAI did not respond before the configured timeout.")
+
+    monkeypatch.setattr(service.azure, "chat_json", timeout)
+    response = api.client.post("/api/v1/studio/lessons/generate", json={
+        "request_id": "timeout-geography-draft", "topic": "Geography", "subject": "Geography", "level": "beginner",
+    })
+    assert response.status_code == 504
+    assert response.json()["error"]["code"] == "AI_TIMEOUT"
+    assert "secret" not in response.text
+    assert calls == [1]
+    with api.app.state.database.session_factory() as session:
+        assert session.scalars(select(StudentGeneratedLesson)).all() == []
+
+
+def test_generation_request_validates_topic_and_learning_level_before_provider(api, monkeypatch):
+    service = api.app.state.learning_service
+
+    def should_not_call_provider(**_kwargs):
+        raise AssertionError("Invalid request must not invoke the provider")
+
+    monkeypatch.setattr(service.azure, "chat_json", should_not_call_provider)
+    too_short = api.client.post("/api/v1/studio/lessons/generate", json={
+        "request_id": "short-topic", "topic": "G", "subject": "Geography", "level": "beginner",
+    })
+    invalid_level = api.client.post("/api/v1/studio/lessons/generate", json={
+        "request_id": "invalid-level", "topic": "Geography", "subject": "Geography", "level": "expert",
+    })
+    assert too_short.status_code == 422
+    assert invalid_level.status_code == 422
+    assert too_short.json()["error"]["code"] == "INVALID_REQUEST"
+    assert invalid_level.json()["error"]["code"] == "INVALID_REQUEST"
 

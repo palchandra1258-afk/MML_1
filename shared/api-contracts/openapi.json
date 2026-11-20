@@ -1730,6 +1730,47 @@
         }
       }
     },
+    "/api/v1/studio/learning-plans/preview": {
+      "post": {
+        "tags": [
+          "student-learning"
+        ],
+        "summary": "Preview Student Learning Plan",
+        "operationId": "previewStudentLearningPlan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearningPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LearningPlanData_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/studio/ai/status": {
       "get": {
         "tags": [
@@ -2628,12 +2669,31 @@
         "properties": {
           "provider": {
             "type": "string",
-            "const": "azure_openai",
+            "enum": [
+              "azure_openai",
+              "gemini",
+              "mock"
+            ],
             "title": "Provider"
           },
           "configured": {
             "type": "boolean",
             "title": "Configured"
+          },
+          "generation_available": {
+            "type": "boolean",
+            "title": "Generation Available"
+          },
+          "availability_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Reason"
           },
           "missing_configuration": {
             "items": {
@@ -2642,7 +2702,9 @@
                 "AZURE_OPENAI_ENDPOINT",
                 "AZURE_OPENAI_API_KEY",
                 "AZURE_OPENAI_DEPLOYMENT_NAME",
-                "AZURE_OPENAI_API_VERSION"
+                "AZURE_OPENAI_API_VERSION",
+                "GEMINI_API_KEY",
+                "GEMINI_MODEL"
               ]
             },
             "type": "array",
@@ -2658,6 +2720,17 @@
               }
             ],
             "title": "Deployment Name"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "timeout_seconds": {
             "type": "number",
@@ -2682,6 +2755,8 @@
         "required": [
           "provider",
           "configured",
+          "generation_available",
+          "availability_reason",
           "missing_configuration",
           "deployment_name",
           "timeout_seconds",
@@ -3423,6 +3498,29 @@
         ],
         "title": "Envelope[LearningHistoryData]"
       },
+      "Envelope_LearningPlanData_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/LearningPlanData"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[LearningPlanData]"
+      },
       "Envelope_LearningSessionData_": {
         "properties": {
           "success": {
@@ -4123,6 +4221,90 @@
         ],
         "title": "EvidenceAlignmentLink"
       },
+      "EvidenceGroundedKnowledgeAssessment": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "method_version": {
+            "type": "string",
+            "const": "studio-binary-evidence-1.1",
+            "title": "Method Version",
+            "default": "studio-binary-evidence-1.1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "insufficient_evidence",
+              "not_available"
+            ],
+            "title": "Status"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "student_studio_attempts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "learner_profile_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Learner Profile Id"
+          },
+          "behavioral_state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Behavioral State Version"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/LearningTopicKnowledgeAssessment"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "learner_profile_id",
+          "topics",
+          "reason",
+          "limitations"
+        ],
+        "title": "EvidenceGroundedKnowledgeAssessment"
+      },
       "EvidenceGroup": {
         "properties": {
           "schema_version": {
@@ -4653,6 +4835,156 @@
         ],
         "title": "KeyPointBlock"
       },
+      "KnowledgeAssessmentObservation": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Attempt Id"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "question_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Question Id"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "correct",
+              "incorrect"
+            ],
+            "title": "Outcome"
+          },
+          "event_timestamp": {
+            "type": "string",
+            "title": "Event Timestamp"
+          },
+          "source_dataset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "mcp-ri-student-studio"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Dataset"
+          },
+          "source_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Record Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "question_id",
+          "outcome",
+          "event_timestamp"
+        ],
+        "title": "KnowledgeAssessmentObservation"
+      },
+      "KnowledgeAssessmentRecommendation": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "diagnostic_question",
+              "review_lesson",
+              "none"
+            ],
+            "title": "Action"
+          },
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "lesson_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lesson Id"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "topic_id",
+          "reason"
+        ],
+        "title": "KnowledgeAssessmentRecommendation"
+      },
       "LearnerDetail": {
         "properties": {
           "learner_id": {
@@ -4708,6 +5040,66 @@
           "available_data"
         ],
         "title": "LearnerSummary"
+      },
+      "LearningAssessmentGuidance": {
+        "properties": {
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "interpretation": {
+            "type": "string",
+            "title": "Interpretation"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "diagnostic_question",
+              "review_lesson",
+              "none"
+            ],
+            "title": "Action"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Id"
+          },
+          "lesson_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lesson Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "topic_id",
+          "interpretation",
+          "action"
+        ],
+        "title": "LearningAssessmentGuidance"
       },
       "LearningHistoryData": {
         "properties": {
@@ -4864,6 +5256,697 @@
         ],
         "title": "LearningObjective"
       },
+      "LearningPlanAssessment": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "curated_questions",
+              "unavailable"
+            ],
+            "title": "Source"
+          },
+          "question_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Question Ids"
+          },
+          "question_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "single_choice",
+                "multiple_choice",
+                "numeric"
+              ]
+            },
+            "type": "array",
+            "title": "Question Types"
+          },
+          "evaluation_mode": {
+            "type": "string",
+            "enum": [
+              "backend_scored_choice_or_numeric",
+              "not_available"
+            ],
+            "title": "Evaluation Mode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "question_ids",
+          "question_types",
+          "evaluation_mode"
+        ],
+        "title": "LearningPlanAssessment"
+      },
+      "LearningPlanData": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Plan Id"
+          },
+          "plan_schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Plan Schema Version",
+            "default": "1.0"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "mapped",
+              "partially_mapped",
+              "unsupported"
+            ],
+            "title": "Status"
+          },
+          "generation_mode": {
+            "type": "string",
+            "const": "rule_based",
+            "title": "Generation Mode"
+          },
+          "persisted": {
+            "type": "boolean",
+            "const": false,
+            "title": "Persisted",
+            "default": false
+          },
+          "learner_profile_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Learner Profile Id"
+          },
+          "learning_goal": {
+            "type": "string",
+            "title": "Learning Goal"
+          },
+          "curriculum_version": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Curriculum Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/LearningProviderStatus"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/LearningPlanMapping"
+          },
+          "knowledge_assessment": {
+            "$ref": "#/components/schemas/LearningPlanKnowledge"
+          },
+          "evidence_based_assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceGroundedKnowledgeAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assessment_guidance": {
+            "items": {
+              "$ref": "#/components/schemas/LearningAssessmentGuidance"
+            },
+            "type": "array",
+            "title": "Assessment Guidance"
+          },
+          "prerequisites": {
+            "$ref": "#/components/schemas/LearningPlanPrerequisites"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/LearningPlanModule"
+            },
+            "type": "array",
+            "title": "Modules"
+          },
+          "ordered_topic_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Ordered Topic Ids"
+          },
+          "learning_sequence": {
+            "items": {
+              "$ref": "#/components/schemas/LearningPlanStep"
+            },
+            "type": "array",
+            "title": "Learning Sequence"
+          },
+          "estimated_minutes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Estimated Minutes"
+          },
+          "missing_information": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Information"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id",
+          "status",
+          "generation_mode",
+          "learner_profile_id",
+          "learning_goal",
+          "curriculum_version",
+          "created_at",
+          "provider",
+          "mapping",
+          "knowledge_assessment",
+          "prerequisites",
+          "modules",
+          "ordered_topic_ids",
+          "learning_sequence",
+          "estimated_minutes",
+          "missing_information",
+          "limitations"
+        ],
+        "title": "LearningPlanData"
+      },
+      "LearningPlanKnowledge": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "not_available"
+            ],
+            "title": "Status"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "student_studio_phase9_behavioral_summary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "state_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Version"
+          },
+          "topic_summaries": {
+            "items": {
+              "$ref": "#/components/schemas/LearningPlanKnowledgeSummary"
+            },
+            "type": "array",
+            "title": "Topic Summaries"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "topic_summaries",
+          "reason"
+        ],
+        "title": "LearningPlanKnowledge"
+      },
+      "LearningPlanKnowledgeSummary": {
+        "properties": {
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Attempts"
+          },
+          "correct": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Correct"
+          },
+          "incorrect": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Incorrect"
+          },
+          "historical_accuracy": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Historical Accuracy"
+          },
+          "recent_accuracy": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Accuracy"
+          },
+          "evidence_sufficiency": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "moderate",
+              "high"
+            ],
+            "title": "Evidence Sufficiency"
+          },
+          "performance_trend": {
+            "type": "string",
+            "enum": [
+              "improving",
+              "declining",
+              "stable",
+              "insufficient_evidence"
+            ],
+            "title": "Performance Trend"
+          },
+          "state_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "State Version"
+          },
+          "supporting_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Supporting Evidence Ids"
+          },
+          "interpretation": {
+            "type": "string",
+            "const": "descriptive_response_history_only",
+            "title": "Interpretation",
+            "default": "descriptive_response_history_only"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "topic_id",
+          "attempts",
+          "correct",
+          "incorrect",
+          "evidence_sufficiency",
+          "performance_trend",
+          "state_version",
+          "supporting_evidence_ids"
+        ],
+        "title": "LearningPlanKnowledgeSummary"
+      },
+      "LearningPlanMapping": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "mapped",
+              "partially_mapped",
+              "unsupported"
+            ],
+            "title": "Status"
+          },
+          "method": {
+            "type": "string",
+            "const": "catalog_keyword_match",
+            "title": "Method"
+          },
+          "matched_goal_terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched Goal Terms"
+          },
+          "unmatched_goal_terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unmatched Goal Terms"
+          },
+          "catalog_gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Catalog Gaps"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "method",
+          "matched_goal_terms",
+          "unmatched_goal_terms",
+          "catalog_gaps",
+          "reason"
+        ],
+        "title": "LearningPlanMapping"
+      },
+      "LearningPlanModule": {
+        "properties": {
+          "module_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Module Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "course_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Course Id"
+          },
+          "ordered_topic_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Ordered Topic Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "module_id",
+          "title",
+          "description",
+          "course_id",
+          "ordered_topic_ids"
+        ],
+        "title": "LearningPlanModule"
+      },
+      "LearningPlanPrerequisite": {
+        "properties": {
+          "prerequisite_topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Prerequisite Topic Id"
+          },
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "source": {
+            "type": "string",
+            "const": "curriculum",
+            "title": "Source"
+          },
+          "verification_status": {
+            "type": "string",
+            "const": "validated",
+            "title": "Verification Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prerequisite_topic_id",
+          "topic_id",
+          "source",
+          "verification_status"
+        ],
+        "title": "LearningPlanPrerequisite"
+      },
+      "LearningPlanPrerequisites": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "identified",
+              "not_established"
+            ],
+            "title": "Status"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/LearningPlanPrerequisite"
+            },
+            "type": "array",
+            "title": "Relationships"
+          },
+          "topics_without_validated_prerequisites": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Topics Without Validated Prerequisites"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "relationships",
+          "topics_without_validated_prerequisites",
+          "reason"
+        ],
+        "title": "LearningPlanPrerequisites"
+      },
+      "LearningPlanRequest": {
+        "properties": {
+          "learning_goal": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Learning Goal"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "learning_goal"
+        ],
+        "title": "LearningPlanRequest"
+      },
+      "LearningPlanStep": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Sequence"
+          },
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "topic_title": {
+            "type": "string",
+            "title": "Topic Title"
+          },
+          "subject_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Subject Id"
+          },
+          "subject_title": {
+            "type": "string",
+            "title": "Subject Title"
+          },
+          "course_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Course Id"
+          },
+          "course_title": {
+            "type": "string",
+            "title": "Course Title"
+          },
+          "unit_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Unit Id"
+          },
+          "unit_title": {
+            "type": "string",
+            "title": "Unit Title"
+          },
+          "lesson_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Lesson Id"
+          },
+          "learning_objectives": {
+            "items": {
+              "$ref": "#/components/schemas/LearningObjective"
+            },
+            "type": "array",
+            "title": "Learning Objectives"
+          },
+          "estimated_minutes": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Estimated Minutes"
+          },
+          "inclusion_reason": {
+            "type": "string",
+            "enum": [
+              "goal_match",
+              "validated_prerequisite"
+            ],
+            "title": "Inclusion Reason"
+          },
+          "prerequisite_topic_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Prerequisite Topic Ids"
+          },
+          "prerequisites_status": {
+            "type": "string",
+            "enum": [
+              "not_established",
+              "validated"
+            ],
+            "title": "Prerequisites Status"
+          },
+          "assessment": {
+            "$ref": "#/components/schemas/LearningPlanAssessment"
+          },
+          "prior_response_summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LearningPlanKnowledgeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sequence",
+          "topic_id",
+          "topic_title",
+          "subject_id",
+          "subject_title",
+          "course_id",
+          "course_title",
+          "unit_id",
+          "unit_title",
+          "lesson_id",
+          "learning_objectives",
+          "estimated_minutes",
+          "inclusion_reason",
+          "prerequisite_topic_ids",
+          "prerequisites_status",
+          "assessment"
+        ],
+        "title": "LearningPlanStep"
+      },
       "LearningProcessingStatus": {
         "properties": {
           "interaction": {
@@ -4896,6 +5979,52 @@
           "behavioral_state_version"
         ],
         "title": "LearningProcessingStatus"
+      },
+      "LearningProviderStatus": {
+        "properties": {
+          "capability": {
+            "type": "string",
+            "const": "learning_plan",
+            "title": "Capability"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "invoked": {
+            "type": "boolean",
+            "const": false,
+            "title": "Invoked",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capability",
+          "status",
+          "reason"
+        ],
+        "title": "LearningProviderStatus"
       },
       "LearningSessionData": {
         "properties": {
@@ -4943,6 +6072,186 @@
           "progress"
         ],
         "title": "LearningSessionData"
+      },
+      "LearningTopicKnowledgeAssessment": {
+        "properties": {
+          "topic_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "title": "Topic Id"
+          },
+          "topic_title": {
+            "type": "string",
+            "title": "Topic Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "supported_understanding",
+              "developing_understanding",
+              "needs_further_assessment",
+              "insufficient_evidence",
+              "conflicting_evidence"
+            ],
+            "title": "Status"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "insufficient",
+              "low"
+            ],
+            "title": "Confidence"
+          },
+          "confidence_basis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Confidence Basis"
+          },
+          "question_quality_status": {
+            "type": "string",
+            "enum": [
+              "unreviewed",
+              "structurally_incomplete"
+            ],
+            "title": "Question Quality Status"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Evidence Count"
+          },
+          "distinct_question_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Distinct Question Count"
+          },
+          "repeat_attempt_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Repeat Attempt Count"
+          },
+          "questions_with_outcome_changes": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Questions With Outcome Changes"
+          },
+          "supporting_attempt_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Supporting Attempt Ids"
+          },
+          "supporting_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Supporting Evidence Ids"
+          },
+          "contradictory_attempt_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Contradictory Attempt Ids"
+          },
+          "contradictory_evidence_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "type": "array",
+            "title": "Contradictory Evidence Ids"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeAssessmentObservation"
+            },
+            "type": "array",
+            "title": "Observations"
+          },
+          "observed_time_range": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Time Range"
+          },
+          "retrieval_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Retrieval Notes"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "uncertainty": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Uncertainty"
+          },
+          "recommended_activity": {
+            "$ref": "#/components/schemas/KnowledgeAssessmentRecommendation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "topic_id",
+          "topic_title",
+          "status",
+          "confidence",
+          "confidence_basis",
+          "question_quality_status",
+          "evidence_count",
+          "distinct_question_count",
+          "repeat_attempt_count",
+          "questions_with_outcome_changes",
+          "supporting_attempt_ids",
+          "supporting_evidence_ids",
+          "contradictory_attempt_ids",
+          "contradictory_evidence_ids",
+          "observations",
+          "retrieval_notes",
+          "explanation",
+          "uncertainty",
+          "recommended_activity"
+        ],
+        "title": "LearningTopicKnowledgeAssessment"
       },
       "LessonContent": {
         "properties": {
@@ -5003,7 +6312,9 @@
             "type": "string",
             "enum": [
               "curated_static",
-              "azure_generated"
+              "azure_generated",
+              "gemini_generated",
+              "mock_generated"
             ],
             "title": "Content Source",
             "default": "curated_static"
@@ -5028,7 +6339,9 @@
             "type": "string",
             "enum": [
               "curated",
-              "azure_openai"
+              "azure_openai",
+              "gemini",
+              "mock"
             ],
             "title": "Generation Source",
             "default": "curated"
@@ -7589,7 +8902,11 @@
           },
           "source": {
             "type": "string",
-            "const": "azure_supplementary_explanation",
+            "enum": [
+              "azure_supplementary_explanation",
+              "gemini_supplementary_explanation",
+              "mock_test_response"
+            ],
             "title": "Source"
           },
           "usage": {

@@ -6,3 +6,5 @@ uvicorn[standard]>=0.30,<1
 httpx2>=2.15,<3
 pytest>=8,<10
 jsonschema>=4.20,<5
+# Official Google Gen AI SDK; stay below v3's breaking interface changes.
+google-genai>=1,<3

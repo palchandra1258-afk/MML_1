@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { runLessonGeneration } from "@/lib/studio/lesson-generation";
 import {
   getLearningService,
   type AnswerFeedback,
@@ -24,18 +25,19 @@ import {
 type View = "home" | "explore" | "subject" | "topic" | "lesson" | "practice" | "progress" | "history";
 
 function ErrorPanel({ message, retry }: { message: string; retry: () => void }) {
-  return <div className="studio-error panel" role="alert"><div><strong>Student Studio could not load this data</strong><p>{message}</p></div><button className="button button--secondary" onClick={retry}>Try again</button></div>;
+  return <div className="studio-error panel" role="alert"><div><strong>Student Studio could not load this data</strong><p>{message}</p></div><button className="button button--secondary" type="button" onClick={retry}>Try again</button></div>;
 }
 
 function EmptyPanel({ title, description }: { title: string; description: string }) {
   return <div className="studio-empty panel"><span className="studio-empty-mark">i</span><div><strong>{title}</strong><p>{description}</p></div></div>;
 }
 
-function GenerateLessonPrompt({ topic, level, setLevel, generating, onGenerate }: {
+function GenerateLessonPrompt({ topic, level, setLevel, generating, error, onGenerate }: {
   topic: string;
   level: "beginner" | "intermediate" | "advanced";
   setLevel: (value: "beginner" | "intermediate" | "advanced") => void;
   generating: boolean;
+  error: string | null;
   onGenerate: () => void;
 }) {
   return <section className="studio-generate-prompt panel" aria-live="polite">
@@ -47,6 +49,8 @@ function GenerateLessonPrompt({ topic, level, setLevel, generating, onGenerate }
     <button className="button button--primary" type="button" onClick={onGenerate} disabled={generating || topic.trim().length < 2}>
       {generating ? "Generating lesson…" : "Generate lesson"}
     </button>
+    {generating && <p role="status" className="studio-generation-status">Preparing your lesson. This may take a little while.</p>}
+    {error && <div className="studio-error panel" role="alert"><div><strong>Lesson generation failed</strong><p>{error}</p></div><button className="button button--secondary" type="button" onClick={onGenerate} disabled={generating}>Try again</button></div>}
   </section>;
 }
 
@@ -164,12 +168,14 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
   const [feedback, setFeedback] = useState<AnswerFeedback | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationLevel, setGenerationLevel] = useState<"beginner" | "intermediate" | "advanced">("beginner");
   const [tutorQuestion, setTutorQuestion] = useState("");
   const [tutorMessages, setTutorMessages] = useState<TutorMessage[]>([]);
   const [tutorLoading, setTutorLoading] = useState(false);
   const submissionId = useRef<string | null>(null);
   const tutorTurnId = useRef<string | null>(null);
+  const generationInFlight = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -248,36 +254,47 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
   const question: PublicQuestion | undefined = practice?.questions[activeQuestion];
   const lessonCheckpoint = lessonPractice?.questions[activeSection];
 
-  async function search(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function searchTopics() {
     try {
       const service = getLearningService();
       const result = await service.search(query.trim());
       setSearchResults(result.data ?? []);
       setError(null);
+      setGenerationError(null);
     } catch (searchError) {
       setError(searchError instanceof Error ? searchError.message : "Search could not be completed.");
     }
   }
 
+  async function search(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await searchTopics();
+  }
+
   async function generateForTopic() {
     const requestedTopic = query.trim();
-    if (requestedTopic.length < 2 || generating) return;
-    setGenerating(true);
+    if (requestedTopic.length < 2 || generationInFlight.current) return;
+    generationInFlight.current = true;
     setError(null);
-    try {
-      const result = await getLearningService().generateLesson({
+    await runLessonGeneration({
         request_id: globalThis.crypto?.randomUUID?.() ?? `generation-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         topic: requestedTopic,
         subject: "General learning",
         level: generationLevel,
-      });
-      router.push(`/studio/lessons/${encodeURIComponent(result.data!.lesson.lesson_id)}`);
-    } catch (generationError) {
-      setError(generationError instanceof Error ? generationError.message : "Lesson generation failed.");
-    } finally {
-      setGenerating(false);
-    }
+      },
+      (request) => getLearningService().generateLesson(request),
+      (state) => {
+        if (state.status === "loading") {
+          setGenerating(true);
+          setGenerationError(null);
+        } else {
+          setGenerating(false);
+          if (state.status === "success") router.push(`/studio/lessons/${encodeURIComponent(state.lessonId)}`);
+          else setGenerationError(state.message);
+        }
+      },
+    );
+    generationInFlight.current = false;
   }
 
   async function askTutor(event: FormEvent<HTMLFormElement>) {
@@ -371,9 +388,9 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
 
   if (view === "home") return <div className="student-studio-page">
     <section className="studio-welcome panel"><div><span className="studio-eyebrow">Student Learning Studio</span><h2>What would you like to learn today?</h2><p>Choose a curated topic, work through a short lesson and practice the ideas with feedback.</p></div><div className="studio-profile-tag"><span className="avatar avatar--small">LD</span><span><strong>Local demo profile</strong><small>Saved on this backend</small></span></div>
-      <form className="studio-search" onSubmit={search}><label className="sr-only" htmlFor="studio-search-home">Search available topics</label><input id="studio-search-home" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, for example Bayes’ theorem"/><button className="button button--primary" type="submit">Find topics</button></form>
+      <form className="studio-search" onSubmit={search}><label className="sr-only" htmlFor="studio-search-home">Search available topics</label><input id="studio-search-home" value={query} onChange={(event) => { setQuery(event.target.value); setGenerationError(null); }} placeholder="Search topics, for example Bayes’ theorem"/><button className="button button--primary" type="submit">Find topics</button></form>
       {searchResults && <div className="studio-search-results" aria-live="polite">{searchResults.length ? searchResults.map((item) => <TopicCard key={item.topic.topic_id} item={item}/>) : <EmptyPanel title="No matching curated lesson" description="This topic is not in the curated catalog. You can request an AI-generated lesson below."/>}</div>}
-      {searchResults?.length === 0 && query.trim().length >= 2 && <GenerateLessonPrompt topic={query.trim()} level={generationLevel} setLevel={setGenerationLevel} generating={generating} onGenerate={() => void generateForTopic()}/>}
+      {searchResults?.length === 0 && query.trim().length >= 2 && <GenerateLessonPrompt topic={query.trim()} level={generationLevel} setLevel={setGenerationLevel} generating={generating} error={generationError} onGenerate={() => void generateForTopic()}/>}
     </section>
     {error && <ErrorPanel message={error} retry={() => setReloadCount((count) => count + 1)}/>}
     <section className="studio-section"><div className="studio-section-heading"><div><span className="studio-eyebrow">Start exploring</span><h2>Subjects</h2></div><Link href="/studio/explore">See all subjects <span aria-hidden="true">→</span></Link></div><div className="studio-subject-grid">{catalog?.subjects.map((subject) => {
@@ -384,9 +401,10 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
   </div>;
 
   if (view === "explore") return <div className="student-studio-page"><header className="studio-page-intro"><span className="studio-eyebrow">Explore subjects</span><h2>Choose a topic to begin</h2><p>Every listed lesson has curated explanations and practice. Empty subject areas are labeled so you know what is available.</p></header>
-    <form className="studio-search studio-search--compact" onSubmit={search}><label className="sr-only" htmlFor="studio-search-explore">Search available topics</label><input id="studio-search-explore" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search available topics"/><button className="button button--primary" type="submit">Search</button></form>
+    <form className="studio-search studio-search--compact" onSubmit={search}><label className="sr-only" htmlFor="studio-search-explore">Search available topics</label><input id="studio-search-explore" value={query} onChange={(event) => { setQuery(event.target.value); setGenerationError(null); setError(null); }} placeholder="Search available topics"/><button className="button button--primary" type="submit">Search</button></form>
     {searchResults && searchResults.length > 0 && <div className="studio-topic-grid">{searchResults.map((item) => <TopicCard key={item.topic.topic_id} item={item}/>)}</div>}
-    {searchResults?.length === 0 && query.trim().length >= 2 && <GenerateLessonPrompt topic={query.trim()} level={generationLevel} setLevel={setGenerationLevel} generating={generating} onGenerate={() => void generateForTopic()}/>}
+    {error && <ErrorPanel message={error} retry={() => void searchTopics()}/>}
+    {searchResults?.length === 0 && query.trim().length >= 2 && <GenerateLessonPrompt topic={query.trim()} level={generationLevel} setLevel={setGenerationLevel} generating={generating} error={generationError} onGenerate={() => void generateForTopic()}/>}
     <div className="studio-explore-subjects">{catalog?.subjects.map((subject) => <section className="studio-subject-section" key={subject.subject_id}><div className="studio-section-heading"><div><span className="studio-eyebrow">Subject</span><h2>{subject.title}</h2></div><Link href={`/studio/subjects/${subject.subject_id}`}>Open subject <span aria-hidden="true">→</span></Link></div><p>{subject.description}</p><div className="studio-topic-grid">{allTopics.filter((item) => item.subject_id === subject.subject_id).map((item) => <TopicCard key={item.topic.topic_id} item={item}/>)}</div>{subject.courses.length === 0 && <EmptyPanel title="Curated lessons are not available yet" description="This subject is listed for exploration, but no lesson content has been published here yet."/>}</section>)}</div>
   </div>;
 
@@ -394,7 +412,7 @@ export function StudentStudioClient({ view, id }: { view: View; id?: string }) {
 
   if (view === "topic") return <div className="student-studio-page">{topic ? <><div className="studio-breadcrumb"><Link href="/studio/explore">Explore subjects</Link><span>›</span><Link href={`/studio/subjects/${topic.subject_id}`}>{topic.subject_title}</Link><span>›</span><span>{topic.topic.title}</span></div><section className="studio-topic-hero panel"><div><span className="studio-eyebrow">{topic.course_title} · {topic.unit_title}</span><h2>{topic.topic.title}</h2><p>{topic.topic.description}</p><div className="studio-topic-meta"><span>{topic.topic.estimated_minutes} minute lesson</span><span>{topic.topic.practice_question_count} practice questions</span><span>Prerequisites not established</span></div></div><Link className="button button--primary" href={`/studio/lessons/${topic.topic.lesson_id}`}>Start or resume lesson <span aria-hidden="true">→</span></Link></section><section className="studio-detail-grid"><article className="panel studio-detail-card"><span className="studio-eyebrow">Learning objectives</span><h3>By the end, you can</h3><ol>{topic.topic.learning_objectives.map((objective) => <li key={objective.objective_id}>{objective.text}</li>)}</ol></article><article className="panel studio-detail-card"><span className="studio-eyebrow">Before you start</span><h3>Prerequisites</h3><p>Validated prerequisite relationships have not been established for this topic.</p><Link href={`/studio/lessons/${topic.topic.lesson_id}`}>Open the curated lesson <span aria-hidden="true">→</span></Link></article></section></> : <EmptyPanel title="Topic unavailable" description="Return to Explore Subjects to pick one of the curated topics."/>}</div>;
 
-  if (view === "lesson") return <div className="student-studio-page">{lesson && activeLessonSection ? <><div className="studio-breadcrumb"><Link href="/studio/explore">Explore subjects</Link><span>›</span><span>{lesson.title}</span></div><section className="studio-lesson-header panel"><div><span className="studio-eyebrow">{lesson.content_source === "azure_generated" ? `AI-generated lesson · ${lesson.learning_level} · ${lesson.estimated_minutes} minutes` : `Curated lesson · ${lesson.estimated_minutes} minutes`}</span><h2>{lesson.title}</h2><p>{lesson.introduction}</p>{lesson.content_source === "azure_generated" && <small>Generated by Azure OpenAI. This material may contain errors; no independent factual verification is claimed.</small>}</div><Link className="button button--secondary" href={`/studio/practice/${lesson.lesson_id}`}>Practice questions</Link></section><section className="studio-objectives panel"><strong>Learning objectives</strong><ul>{lesson.learning_objectives.map((objective) => <li key={objective.objective_id}>{objective.text}</li>)}</ul></section>
+  if (view === "lesson") return <div className="student-studio-page">{lesson && activeLessonSection ? <><div className="studio-breadcrumb"><Link href="/studio/explore">Explore subjects</Link><span>›</span><span>{lesson.title}</span></div><section className="studio-lesson-header panel"><div><span className="studio-eyebrow">{lesson.content_source === "curated_static" ? `Curated lesson · ${lesson.estimated_minutes} minutes` : lesson.content_source === "mock_generated" ? `Test lesson · ${lesson.learning_level} · ${lesson.estimated_minutes} minutes` : `AI-generated lesson · ${lesson.learning_level} · ${lesson.estimated_minutes} minutes`}</span><h2>{lesson.title}</h2><p>{lesson.introduction}</p>{lesson.content_source !== "curated_static" && <small>{lesson.content_source === "mock_generated" ? "Mock provider test content. This was not AI generated." : `Generated by ${lesson.generation_source === "gemini" ? "Gemini" : "Azure OpenAI"}. This material may contain errors; no independent factual verification is claimed.`}</small>}</div><Link className="button button--secondary" href={`/studio/practice/${lesson.lesson_id}`}>Practice questions</Link></section><section className="studio-objectives panel"><strong>Learning objectives</strong><ul>{lesson.learning_objectives.map((objective) => <li key={objective.objective_id}>{objective.text}</li>)}</ul></section>
     <div className="studio-lesson-layout"><nav className="studio-section-nav panel" aria-label="Lesson sections"><div className="studio-section-nav-title"><span className="studio-eyebrow">Lesson sections</span><strong>{lessonProgress?.completed_required_sections ?? 0} of {lessonProgress?.required_section_count ?? lesson.sections.length} complete</strong></div><div className="studio-progress-track"><span style={{ width: `${lessonProgress?.completion_percentage ?? 0}%` }}/></div>{lesson.sections.map((section, index) => <button key={section.section_id} className={`studio-section-nav-item ${index === activeSection ? "is-active" : ""} ${(lessonProgress?.completed_section_ids ?? []).includes(section.section_id) ? "is-complete" : ""}`} onClick={() => void saveSection(index)}><span>{(lessonProgress?.completed_section_ids ?? []).includes(section.section_id) ? "✓" : index + 1}</span>{section.title}</button>)}</nav>
       <article className="studio-lesson-content panel"><span className="studio-eyebrow">Section {activeSection + 1} of {lesson.sections.length}</span><h2>{activeLessonSection.title}</h2><div className="studio-lesson-blocks">{activeLessonSection.blocks.map((block, index) => <LessonBlockView key={`${activeLessonSection.section_id}-${index}`} block={block}/>)}</div>{lessonCheckpoint && learningSession && <LessonCheckpoint key={lessonCheckpoint.question_id} question={lessonCheckpoint} sessionId={learningSession.session_id}/>}<div className="studio-lesson-controls"><button className="button button--secondary" disabled={activeSection === 0} onClick={() => void saveSection(Math.max(0, activeSection - 1))}>Previous</button><span>{lessonProgress?.completion_percentage ?? 0}% lesson sections complete</span><button className="button button--primary" onClick={() => void completeSection()}>{activeSection === lesson.sections.length - 1 ? "Finish lesson" : "Mark complete and continue"}</button></div>{lessonProgress?.status === "completed" && <div className="studio-completion-note" role="status"><strong>Lesson content completed</strong><span>This records section completion. It does not represent a mastery judgment.</span></div>}<section className="studio-tutor" aria-labelledby="studio-tutor-title"><div><span className="studio-eyebrow">Lesson tutor</span><h3 id="studio-tutor-title">Ask about this section</h3><p>Answers use this lesson and study session as context. Supplementary explanations are AI-generated and do not change the lesson or your answers.</p></div>{tutorMessages.length > 0 && <ol className="studio-tutor-history" aria-live="polite">{tutorMessages.map((item, index) => <li key={`${item.created_at}-${index}`} className={`studio-tutor-message is-${item.role}`}><strong>{item.role === "user" ? "You" : "Tutor"}</strong><p>{item.content}</p></li>)}</ol>}<form onSubmit={(event) => void askTutor(event)}><label className="sr-only" htmlFor="studio-tutor-question">Ask a question about this lesson</label><textarea id="studio-tutor-question" value={tutorQuestion} onChange={(event) => { tutorTurnId.current = null; setTutorQuestion(event.target.value); }} maxLength={2000} rows={3} placeholder="Ask for a simpler explanation, another example, or a step-by-step walkthrough"/><button className="button button--primary" type="submit" disabled={tutorLoading || !tutorQuestion.trim() || !learningSession}>{tutorLoading ? "Thinking…" : "Ask tutor"}</button></form>{error && <div role="alert" className="studio-tutor-error">{error}</div>}</section></article></div>{error && <ErrorPanel message={error} retry={() => setReloadCount((count) => count + 1)}/>}</> : <EmptyPanel title="Lesson unavailable" description="Return to Explore Subjects and choose a published lesson."/>}</div>;
 

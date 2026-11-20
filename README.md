@@ -98,12 +98,20 @@ python3 -m venv .venv-api
 .venv-api/bin/python -m pip install -r requirements-api.txt
 PYTHONPATH=src .venv-api/bin/python scripts/api/migrate_database.py
 PYTHONPATH=src .venv-api/bin/python scripts/api/index_artifacts.py
+# Optional: load backend-only AI settings from the ignored repository-root file.
+if [ -f .env.backend ]; then
+  set -a
+  . ./.env.backend
+  set +a
+fi
 PYTHONPATH=src .venv-api/bin/uvicorn mcp_ri.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Review the configured database before running the explicit migration command. API startup does not migrate or create application tables by default; `MCP_RI_AUTO_MIGRATE=true` opts into startup migration.
 
 The artifact index is a one-time sequential read of configured JSONL outputs; it stores IDs, timestamps, links, and byte offsets only. Health remains degraded until indexing finishes. Local API and frontend integration details are in [`docs/PHASE14_BACKEND_ARCHITECTURE.md`](docs/PHASE14_BACKEND_ARCHITECTURE.md) and [`shared/api-contracts/README.md`](shared/api-contracts/README.md).
+
+See [`docs/AI_LESSON_GENERATION.md`](docs/AI_LESSON_GENERATION.md) for the Student Studio generation flow, supported deployment requirements, error responses, and mocked tests.
 
 ## F11 Azure interactive learning
 

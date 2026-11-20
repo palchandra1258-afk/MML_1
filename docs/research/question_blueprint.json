@@ -1,0 +1,1375 @@
+{
+  "blueprint_version": "question-blueprint-1.0",
+  "curriculum_version": "1.0.0",
+  "source": "authored_student_studio_curriculum",
+  "review_status_values": [
+    "pending_review",
+    "approved",
+    "approved_with_revision",
+    "requires_revision",
+    "rejected"
+  ],
+  "cognitive_demand_values": [
+    "recall",
+    "conceptual_understanding",
+    "application",
+    "analysis",
+    "problem_solving"
+  ],
+  "questions": [
+    {
+      "question_id": "introduction-to-probability-q1",
+      "topic_id": "introduction-to-probability",
+      "topic_title": "Introduction to Probability",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "probability-basics",
+      "lesson_id": "introduction-to-probability",
+      "learning_objective_id": "introduction-to-probability-objective-1",
+      "catalog_objective_text": "Identify outcomes, events and sample spaces.",
+      "question_format": "single_choice",
+      "wording": "A fair six-sided die is rolled. What is P(even)?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "1/2"
+        },
+        {
+          "option_id": "b",
+          "text": "1/3"
+        },
+        {
+          "option_id": "c",
+          "text": "2/3"
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "1/2"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Identify outcomes, events and sample spaces.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "There are three even outcomes among six equally likely outcomes, so 3/6 = 1/2."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "introduction-to-probability-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "introduction-to-probability-q2",
+      "topic_id": "introduction-to-probability",
+      "topic_title": "Introduction to Probability",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "probability-basics",
+      "lesson_id": "introduction-to-probability",
+      "learning_objective_id": "introduction-to-probability-objective-2",
+      "catalog_objective_text": "Calculate probabilities for equally likely outcomes.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about probability are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "For equally likely outcomes, count favorable outcomes and divide by all outcomes."
+        },
+        {
+          "option_id": "b",
+          "text": "Every probability lies between 0 and 1."
+        },
+        {
+          "option_id": "c",
+          "text": "An independent die roll is affected by the result of the previous roll."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "b"
+          ]
+        },
+        "expected_answer": "a: For equally likely outcomes, count favorable outcomes and divide by all outcomes.; b: Every probability lies between 0 and 1."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Calculate probabilities for equally likely outcomes.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The counting rule applies to equally likely outcomes, and probabilities lie in [0, 1]. Independent rolls do not affect one another."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "introduction-to-probability-q1"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "conditional-probability-q1",
+      "topic_id": "conditional-probability",
+      "topic_title": "Conditional Probability",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "probability-basics",
+      "lesson_id": "conditional-probability",
+      "learning_objective_id": "conditional-probability-objective-1",
+      "catalog_objective_text": "Interpret conditional probability as a restricted sample space.",
+      "question_format": "single_choice",
+      "wording": "Of 12 students who study French, 8 also study music. What is P(music | French)?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "2/3"
+        },
+        {
+          "option_id": "b",
+          "text": "4/5"
+        },
+        {
+          "option_id": "c",
+          "text": "8/30"
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "2/3"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Interpret conditional probability as a restricted sample space.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "Restrict attention to the 12 students who study French, then count the 8 who also study music: 8/12 = 2/3."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "conditional-probability-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "conditional-probability-q2",
+      "topic_id": "conditional-probability",
+      "topic_title": "Conditional Probability",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "probability-basics",
+      "lesson_id": "conditional-probability",
+      "learning_objective_id": "conditional-probability-objective-2",
+      "catalog_objective_text": "Calculate conditional probability from counts or a two-way table.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about P(A | B) are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "The denominator is the probability or count for B."
+        },
+        {
+          "option_id": "b",
+          "text": "It always equals P(B | A)."
+        },
+        {
+          "option_id": "c",
+          "text": "It can be calculated as P(A ∩ B) / P(B), when P(B) > 0."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "c"
+          ]
+        },
+        "expected_answer": "a: The denominator is the probability or count for B.; c: It can be calculated as P(A ∩ B) / P(B), when P(B) > 0."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Calculate conditional probability from counts or a two-way table.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The condition B defines the restricted group, so P(B) is the denominator. Reversing the condition generally changes the probability."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "conditional-probability-q1"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "bayes-theorem-q1",
+      "topic_id": "bayes-theorem",
+      "topic_title": "Bayes’ Theorem",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "probability-basics",
+      "lesson_id": "bayes-theorem",
+      "learning_objective_id": "bayes-theorem-objective-1",
+      "catalog_objective_text": "Identify priors, likelihoods and evidence.",
+      "question_format": "single_choice",
+      "wording": "A condition affects 1% of people. A test has 90% sensitivity and 5% false-positive rate. About what fraction of positive results are true positives?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "15.4%"
+        },
+        {
+          "option_id": "b",
+          "text": "90%"
+        },
+        {
+          "option_id": "c",
+          "text": "95%"
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "About 15.4%"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Identify priors, likelihoods and evidence.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "In 1,000 people, about 9 true positives and 49.5 false positives are expected. The fraction is 9/(9+49.5) ≈ 15.4%."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "bayes-theorem-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "bayes-theorem-q2",
+      "topic_id": "bayes-theorem",
+      "topic_title": "Bayes’ Theorem",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "probability-basics",
+      "lesson_id": "bayes-theorem",
+      "learning_objective_id": "bayes-theorem-objective-2",
+      "catalog_objective_text": "Apply Bayes’ theorem to a diagnostic example.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about diagnostic test probabilities are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "Sensitivity is P(positive | condition)."
+        },
+        {
+          "option_id": "b",
+          "text": "A rare condition makes every positive result almost certainly false."
+        },
+        {
+          "option_id": "c",
+          "text": "P(condition | positive) also depends on prevalence and false positives."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "c"
+          ]
+        },
+        "expected_answer": "a: Sensitivity is P(positive | condition).; c: P(condition | positive) also depends on prevalence and false positives."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Apply Bayes’ theorem to a diagnostic example.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "Sensitivity and the probability of having a condition after a positive result reverse the condition; prevalence and false positives matter."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "bayes-theorem-q1"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "random-variables-q1",
+      "topic_id": "random-variables",
+      "topic_title": "Random Variables",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "random-quantities",
+      "lesson_id": "random-variables",
+      "learning_objective_id": "random-variables-objective-1",
+      "catalog_objective_text": "Distinguish an outcome from a random variable.",
+      "question_format": "single_choice",
+      "wording": "Two fair coins are tossed. Let X count heads. What is P(X = 1)?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "1/2"
+        },
+        {
+          "option_id": "b",
+          "text": "1/4"
+        },
+        {
+          "option_id": "c",
+          "text": "3/4"
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "1/2"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Distinguish an outcome from a random variable.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The outcomes HT and TH give one head. Two of four equally likely outcomes satisfy X = 1."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "random-variables-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "random-variables-q2",
+      "topic_id": "random-variables",
+      "topic_title": "Random Variables",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "random-quantities",
+      "lesson_id": "random-variables",
+      "learning_objective_id": "random-variables-objective-2",
+      "catalog_objective_text": "Read a discrete probability distribution.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about the two-coin random variable X = number of heads are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "HT and TH both map to X = 1."
+        },
+        {
+          "option_id": "b",
+          "text": "X can take only the value 1."
+        },
+        {
+          "option_id": "c",
+          "text": "The probabilities of X = 0, 1, 2 add to 1."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "c"
+          ]
+        },
+        "expected_answer": "a: HT and TH both map to X = 1.; c: The probabilities of X = 0, 1, 2 add to 1."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Read a discrete probability distribution.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "Two outcomes map to one head, and a probability distribution over all possible values sums to one."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "random-variables-q1"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "expected-value-q1",
+      "topic_id": "expected-value",
+      "topic_title": "Expected Value",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "random-quantities",
+      "lesson_id": "expected-value",
+      "learning_objective_id": "expected-value-objective-1",
+      "catalog_objective_text": "Calculate an expectation from a discrete distribution.",
+      "question_format": "single_choice",
+      "wording": "A fair coin game pays $4 for heads and $0 for tails. What is the expected payout?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "$2"
+        },
+        {
+          "option_id": "b",
+          "text": "$4"
+        },
+        {
+          "option_id": "c",
+          "text": "$1"
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "$2"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Calculate an expectation from a discrete distribution.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "Each payout has probability 1/2, so E[X] = 4(1/2) + 0(1/2) = $2."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [
+          "expected-value-q3"
+        ],
+        "other_same_topic_question_ids": [
+          "expected-value-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "expected-value-q2",
+      "topic_id": "expected-value",
+      "topic_title": "Expected Value",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "random-quantities",
+      "lesson_id": "expected-value",
+      "learning_objective_id": "expected-value-objective-2",
+      "catalog_objective_text": "Use expected value to compare simple choices.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about expected value are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "It is a probability-weighted average of possible values."
+        },
+        {
+          "option_id": "b",
+          "text": "It guarantees the result of one trial."
+        },
+        {
+          "option_id": "c",
+          "text": "It can be useful when comparing repeated uncertain payoffs."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "c"
+          ]
+        },
+        "expected_answer": "a: It is a probability-weighted average of possible values.; c: It can be useful when comparing repeated uncertain payoffs."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Use expected value to compare simple choices.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "Expected value summarizes the distribution and can compare repeated choices; it does not guarantee an individual outcome."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "expected-value-q1",
+          "expected-value-q3"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "descriptive-statistics-q1",
+      "topic_id": "descriptive-statistics",
+      "topic_title": "Descriptive Statistics",
+      "subject_id": "statistics",
+      "course_id": "statistics-foundations",
+      "unit_id": "describing-data",
+      "lesson_id": "descriptive-statistics",
+      "learning_objective_id": "descriptive-statistics-objective-1",
+      "catalog_objective_text": "Calculate mean and median for a small dataset.",
+      "question_format": "single_choice",
+      "wording": "For the population {2, 4, 6}, what are the mean and median?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "Both are 4."
+        },
+        {
+          "option_id": "b",
+          "text": "Mean is 6 and median is 4."
+        },
+        {
+          "option_id": "c",
+          "text": "Mean is 4 and median is 6."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "Mean = 4; median = 4."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Calculate mean and median for a small dataset.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The values are already sorted. Their mean is 12/3 = 4 and the middle value is 4."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "descriptive-statistics-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "descriptive-statistics-q2",
+      "topic_id": "descriptive-statistics",
+      "topic_title": "Descriptive Statistics",
+      "subject_id": "statistics",
+      "course_id": "statistics-foundations",
+      "unit_id": "describing-data",
+      "lesson_id": "descriptive-statistics",
+      "learning_objective_id": "descriptive-statistics-objective-2",
+      "catalog_objective_text": "Explain how an outlier affects the mean and median.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about mean and median are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "An extreme high value can pull the mean upward."
+        },
+        {
+          "option_id": "b",
+          "text": "The mean and median are always equal."
+        },
+        {
+          "option_id": "c",
+          "text": "The median is the middle value after sorting."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "c"
+          ]
+        },
+        "expected_answer": "a: An extreme high value can pull the mean upward.; c: The median is the middle value after sorting."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Explain how an outlier affects the mean and median.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The mean uses every value and can be pulled by an outlier; the median is determined by sorted position."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "descriptive-statistics-q1"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "introduction-to-algorithms-q1",
+      "topic_id": "introduction-to-algorithms",
+      "topic_title": "Introduction to Algorithms",
+      "subject_id": "computer-science",
+      "course_id": "algorithms-foundations",
+      "unit_id": "algorithmic-thinking",
+      "lesson_id": "introduction-to-algorithms",
+      "learning_objective_id": "introduction-to-algorithms-objective-1",
+      "catalog_objective_text": "Describe an algorithm as a finite, precise procedure.",
+      "question_format": "single_choice",
+      "wording": "Linear search checks [4, 7, 2] from left to right for 7. How many comparisons are made?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "2"
+        },
+        {
+          "option_id": "b",
+          "text": "1"
+        },
+        {
+          "option_id": "c",
+          "text": "3"
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a"
+          ]
+        },
+        "expected_answer": "2 comparisons"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Describe an algorithm as a finite, precise procedure.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The first comparison checks 4; the second checks 7 and succeeds."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "introduction-to-algorithms-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "introduction-to-algorithms-q2",
+      "topic_id": "introduction-to-algorithms",
+      "topic_title": "Introduction to Algorithms",
+      "subject_id": "computer-science",
+      "course_id": "algorithms-foundations",
+      "unit_id": "algorithmic-thinking",
+      "lesson_id": "introduction-to-algorithms",
+      "learning_objective_id": "introduction-to-algorithms-objective-2",
+      "catalog_objective_text": "Trace a linear search and count its comparisons.",
+      "question_format": "multiple_choice",
+      "wording": "Which statements about algorithms are correct?",
+      "answer_options": [
+        {
+          "option_id": "a",
+          "text": "An algorithm should have a finite, precise procedure."
+        },
+        {
+          "option_id": "b",
+          "text": "Fewer lines of code always means fewer operations."
+        },
+        {
+          "option_id": "c",
+          "text": "Linear search can inspect n items in its worst case."
+        }
+      ],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "choice",
+          "correct_option_ids": [
+            "a",
+            "c"
+          ]
+        },
+        "expected_answer": "a: An algorithm should have a finite, precise procedure.; c: Linear search can inspect n items in its worst case."
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Trace a linear search and count its comparisons.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "An algorithm is a finite procedure. Linear search may check every item; code length alone does not measure work."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [],
+        "other_same_topic_question_ids": [
+          "introduction-to-algorithms-q1"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    },
+    {
+      "question_id": "expected-value-q3",
+      "topic_id": "expected-value",
+      "topic_title": "Expected Value",
+      "subject_id": "mathematics",
+      "course_id": "probability-foundations",
+      "unit_id": "random-quantities",
+      "lesson_id": "expected-value",
+      "learning_objective_id": "expected-value-objective-1",
+      "catalog_objective_text": "Calculate an expectation from a discrete distribution.",
+      "question_format": "numeric",
+      "wording": "A fair coin pays $4 for heads and $0 for tails. Enter its expected payout in dollars.",
+      "answer_options": [],
+      "correct_answer_definition": {
+        "grading": {
+          "kind": "numeric",
+          "expected_value": "2",
+          "absolute_tolerance": "0.001",
+          "relative_tolerance": "0"
+        },
+        "expected_answer": "2 dollars"
+      },
+      "intended_cognitive_demand": {
+        "value": "unknown",
+        "reviewer_options": [
+          "recall",
+          "conceptual_understanding",
+          "application",
+          "analysis",
+          "problem_solving"
+        ],
+        "status": "pending_expert_review"
+      },
+      "intended_knowledge_or_skill": {
+        "value": "Calculate an expectation from a discrete distribution.",
+        "source": "authored_catalog_learning_objective",
+        "status": "provisional_alignment_pending_expert_review"
+      },
+      "assessment_purpose": {
+        "current_use": "student_studio_practice",
+        "diagnostic_suitability": "unknown_pending_expert_review"
+      },
+      "difficulty": {
+        "catalog_label": "introductory",
+        "calibration_status": "unvalidated_catalog_label"
+      },
+      "explanation": {
+        "available": true,
+        "text": "The expected payout is 4 × 1/2 + 0 × 1/2 = 2 dollars."
+      },
+      "potential_ambiguity": "unknown_pending_expert_review",
+      "conceptual_overlap": {
+        "same_objective_question_ids": [
+          "expected-value-q1"
+        ],
+        "other_same_topic_question_ids": [
+          "expected-value-q2"
+        ],
+        "review_status": "pending_expert_review"
+      },
+      "human_review": {
+        "status": "pending_review",
+        "reviewer_comments": [],
+        "reviewer_id": null,
+        "reviewed_at": null
+      },
+      "metadata_completeness": {
+        "structurally_complete": true,
+        "structural_findings": [],
+        "unknown_or_unreviewed_fields": [
+          "intended_cognitive_demand",
+          "difficulty_calibration",
+          "ambiguity_review",
+          "conceptual_validity",
+          "diagnostic_suitability",
+          "psychometric_quality"
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "This draft copies catalog facts and marks expert judgments unknown or pending; it records no completed review.",
+    "Catalog objective alignment is provisional and requires expert confirmation.",
+    "Difficulty labels are authored metadata, not calibrated item difficulty."
+  ]
+}

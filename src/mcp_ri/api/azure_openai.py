@@ -18,6 +18,7 @@ class AzureResult:
     content: str
     usage: dict[str, int] | None
     model: str | None
+    status_code: int = 200
 
 
 class AzureOpenAIClient:
@@ -38,11 +39,20 @@ class AzureOpenAIClient:
 
     def diagnostics(self) -> dict[str, Any]:
         missing = self.missing_configuration()
+        realtime_deployment = self.settings.azure_openai_deployment_name.casefold() == "gpt-realtime"
+        availability_reason = None
+        if missing:
+            availability_reason = "Required Azure OpenAI settings are missing: " + ", ".join(missing)
+        elif realtime_deployment:
+            availability_reason = "The configured realtime deployment does not support lesson text generation."
         return {
             "provider": "azure_openai",
             "configured": not missing,
+            "generation_available": not missing and not realtime_deployment,
+            "availability_reason": availability_reason,
             "missing_configuration": missing,
             "deployment_name": self.settings.azure_openai_deployment_name or None,
+            "model": self.settings.azure_openai_deployment_name or None,
             "timeout_seconds": min(120.0, max(1.0, self.settings.azure_openai_timeout_seconds)),
             "max_retries": min(5, max(0, self.settings.azure_openai_max_retries)),
             "voice_deployment_used": False,
@@ -75,6 +85,10 @@ class AzureOpenAIClient:
         for attempt in range(max_retries + 1):
             try:
                 with self._opener(request, timeout=timeout) as response:
+                    status_code = getattr(response, "status", None)
+                    if status_code is None:
+                        getcode = getattr(response, "getcode", None)
+                        status_code = getcode() if callable(getcode) else 200
                     raw = response.read(2_000_001)
                     if len(raw) > 2_000_000:
                         raise APIError(502, "AI_RESPONSE_TOO_LARGE", "Azure OpenAI returned an oversized response.")
@@ -87,7 +101,12 @@ class AzureOpenAIClient:
                 if isinstance(usage_raw, dict):
                     usage = {key: int(usage_raw[key]) for key in ("prompt_tokens", "completion_tokens", "total_tokens")
                              if isinstance(usage_raw.get(key), int)}
-                return AzureResult(content=content, usage=usage, model=document.get("model"))
+                return AzureResult(
+                    content=content,
+                    usage=usage,
+                    model=document.get("model"),
+                    status_code=int(status_code),
+                )
             except HTTPError as exc:
                 if exc.code == 429 and attempt < max_retries:
                     retry_after = exc.headers.get("Retry-After", "1") if exc.headers else "1"

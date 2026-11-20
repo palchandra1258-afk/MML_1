@@ -24,6 +24,7 @@ from . import API_VERSION
 from .errors import APIError
 from .learning_routes import learning_router
 from .learning_service import LearningService
+from .learning_plan_service import LearningPlanService
 from .persistence import Database
 from .routers import router
 from .services import ArtifactService, ResearchService, TrajectoryService
@@ -79,6 +80,7 @@ def create_app(
         application.state.research_service = ResearchService(application.state.artifact_service)
         application.state.trajectory_service = TrajectoryService(application.state.artifact_service)
         application.state.learning_service = LearningService(active_settings)
+        application.state.learning_plan_service = LearningPlanService()
         try:
             yield
         finally:

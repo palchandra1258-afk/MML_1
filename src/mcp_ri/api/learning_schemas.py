@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from typing_extensions import Union
 
 
@@ -127,10 +127,10 @@ class LessonContent(StrictModel):
     learning_objectives: list[LearningObjective] = Field(min_length=1)
     estimated_minutes: int = Field(ge=1, le=240)
     content_version: ContentVersion
-    content_source: Literal["curated_static", "azure_generated"] = "curated_static"
+    content_source: Literal["curated_static", "azure_generated", "gemini_generated", "mock_generated"] = "curated_static"
     subject: str = Field(default="", max_length=160)
     learning_level: Literal["beginner", "intermediate", "advanced"] = "intermediate"
-    generation_source: Literal["curated", "azure_openai"] = "curated"
+    generation_source: Literal["curated", "azure_openai", "gemini", "mock"] = "curated"
     sections: list[LessonSection] = Field(min_length=1)
 
 
@@ -183,12 +183,16 @@ class LessonGenerationResult(StrictModel):
 
 
 class AzureAIStatus(StrictModel):
-    provider: Literal["azure_openai"]
+    provider: Literal["azure_openai", "gemini", "mock"]
     configured: bool
+    generation_available: bool
+    availability_reason: str | None
     missing_configuration: list[Literal[
         "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_DEPLOYMENT_NAME", "AZURE_OPENAI_API_VERSION",
+        "GEMINI_API_KEY", "GEMINI_MODEL",
     ]]
     deployment_name: str | None
+    model: str | None = None
     timeout_seconds: float = Field(ge=1, le=120)
     max_retries: int = Field(ge=0, le=5)
     voice_deployment_used: Literal[False]
@@ -204,7 +208,7 @@ class TutorRequest(StrictModel):
 
 class TutorResponse(StrictModel):
     answer: str = Field(min_length=1, max_length=5000)
-    source: Literal["azure_supplementary_explanation"]
+    source: Literal["azure_supplementary_explanation", "gemini_supplementary_explanation", "mock_test_response"]
     usage: dict[str, int] | None = None
     notice: str
 
@@ -257,6 +261,195 @@ class CurriculumFile(StrictModel):
 class CurriculumCatalog(StrictModel):
     curriculum_version: ContentVersion
     subjects: list[CurriculumSubject]
+
+
+class LearningPlanRequest(StrictModel):
+    learning_goal: str = Field(min_length=3, max_length=500)
+
+    @field_validator("learning_goal")
+    @classmethod
+    def normalize_learning_goal(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 3:
+            raise ValueError("learning_goal must contain at least 3 non-whitespace characters")
+        return normalized
+
+
+class LearningProviderStatus(StrictModel):
+    capability: Literal["learning_plan"]
+    status: Literal["available", "unavailable"]
+    provider_id: str | None = None
+    reason: str
+    invoked: Literal[False] = False
+
+
+class LearningPlanAssessment(StrictModel):
+    source: Literal["curated_questions", "unavailable"]
+    question_ids: list[Identifier]
+    question_types: list[Literal["single_choice", "multiple_choice", "numeric"]]
+    evaluation_mode: Literal["backend_scored_choice_or_numeric", "not_available"]
+
+
+class LearningPlanKnowledgeSummary(StrictModel):
+    topic_id: Identifier
+    attempts: int = Field(ge=0)
+    correct: int = Field(ge=0)
+    incorrect: int = Field(ge=0)
+    historical_accuracy: float | None = Field(default=None, ge=0, le=1)
+    recent_accuracy: float | None = Field(default=None, ge=0, le=1)
+    evidence_sufficiency: Literal["none", "low", "moderate", "high"]
+    performance_trend: Literal["improving", "declining", "stable", "insufficient_evidence"]
+    state_version: int = Field(ge=1)
+    supporting_evidence_ids: list[Identifier]
+    interpretation: Literal["descriptive_response_history_only"] = "descriptive_response_history_only"
+
+
+class LearningPlanKnowledge(StrictModel):
+    status: Literal["available", "not_available"]
+    source: Literal["student_studio_phase9_behavioral_summary"] | None = None
+    state_version: int | None = Field(default=None, ge=1)
+    topic_summaries: list[LearningPlanKnowledgeSummary]
+    reason: str
+
+
+class KnowledgeAssessmentRecommendation(StrictModel):
+    action: Literal["diagnostic_question", "review_lesson", "none"]
+    topic_id: Identifier
+    lesson_id: Identifier | None = None
+    question_id: Identifier | None = None
+    title: str | None = None
+    reason: str
+
+
+class KnowledgeAssessmentObservation(StrictModel):
+    attempt_id: Identifier
+    evidence_id: Identifier | None = None
+    question_id: Identifier
+    outcome: Literal["correct", "incorrect"]
+    event_timestamp: str
+    source_dataset: Literal["mcp-ri-student-studio"] | None = None
+    source_record_id: Identifier | None = None
+
+
+class LearningTopicKnowledgeAssessment(StrictModel):
+    topic_id: Identifier
+    topic_title: str
+    status: Literal[
+        "supported_understanding", "developing_understanding", "needs_further_assessment",
+        "insufficient_evidence", "conflicting_evidence",
+    ]
+    confidence: Literal["insufficient", "low"]
+    confidence_basis: list[str]
+    question_quality_status: Literal["unreviewed", "structurally_incomplete"]
+    evidence_count: int = Field(ge=0)
+    distinct_question_count: int = Field(ge=0)
+    repeat_attempt_count: int = Field(ge=0)
+    questions_with_outcome_changes: list[Identifier]
+    supporting_attempt_ids: list[Identifier]
+    supporting_evidence_ids: list[Identifier]
+    contradictory_attempt_ids: list[Identifier]
+    contradictory_evidence_ids: list[Identifier]
+    observations: list[KnowledgeAssessmentObservation]
+    observed_time_range: dict[str, str] | None = None
+    retrieval_notes: list[str]
+    explanation: str
+    uncertainty: list[str]
+    recommended_activity: KnowledgeAssessmentRecommendation
+
+
+class EvidenceGroundedKnowledgeAssessment(StrictModel):
+    schema_version: Literal["1.0"] = "1.0"
+    method_version: Literal["studio-binary-evidence-1.1"] = "studio-binary-evidence-1.1"
+    status: Literal["available", "insufficient_evidence", "not_available"]
+    source: Literal["student_studio_attempts"] | None = None
+    learner_profile_id: Identifier
+    behavioral_state_version: int | None = Field(default=None, ge=1)
+    topics: list[LearningTopicKnowledgeAssessment]
+    reason: str
+    limitations: list[str]
+
+
+class LearningAssessmentGuidance(StrictModel):
+    topic_id: Identifier
+    interpretation: str
+    action: Literal["diagnostic_question", "review_lesson", "none"]
+    question_id: Identifier | None = None
+    lesson_id: Identifier | None = None
+
+
+class LearningPlanStep(StrictModel):
+    sequence: int = Field(ge=1)
+    topic_id: Identifier
+    topic_title: str
+    subject_id: Identifier
+    subject_title: str
+    course_id: Identifier
+    course_title: str
+    unit_id: Identifier
+    unit_title: str
+    lesson_id: Identifier
+    learning_objectives: list[LearningObjective]
+    estimated_minutes: int = Field(ge=1)
+    inclusion_reason: Literal["goal_match", "validated_prerequisite"]
+    prerequisite_topic_ids: list[Identifier]
+    prerequisites_status: Literal["not_established", "validated"]
+    assessment: LearningPlanAssessment
+    prior_response_summary: LearningPlanKnowledgeSummary | None = None
+
+
+class LearningPlanModule(StrictModel):
+    module_id: Identifier
+    title: str
+    description: str
+    course_id: Identifier
+    ordered_topic_ids: list[Identifier]
+
+
+class LearningPlanPrerequisite(StrictModel):
+    prerequisite_topic_id: Identifier
+    topic_id: Identifier
+    source: Literal["curriculum"]
+    verification_status: Literal["validated"]
+
+
+class LearningPlanPrerequisites(StrictModel):
+    status: Literal["identified", "not_established"]
+    relationships: list[LearningPlanPrerequisite]
+    topics_without_validated_prerequisites: list[Identifier]
+    reason: str
+
+
+class LearningPlanMapping(StrictModel):
+    status: Literal["mapped", "partially_mapped", "unsupported"]
+    method: Literal["catalog_keyword_match"]
+    matched_goal_terms: list[str]
+    unmatched_goal_terms: list[str]
+    catalog_gaps: list[str]
+    reason: str
+
+
+class LearningPlanData(StrictModel):
+    plan_id: Identifier
+    plan_schema_version: Literal["1.0"] = "1.0"
+    status: Literal["mapped", "partially_mapped", "unsupported"]
+    generation_mode: Literal["rule_based"]
+    persisted: Literal[False] = False
+    learner_profile_id: Identifier
+    learning_goal: str
+    curriculum_version: ContentVersion
+    created_at: str
+    provider: LearningProviderStatus
+    mapping: LearningPlanMapping
+    knowledge_assessment: LearningPlanKnowledge
+    evidence_based_assessment: EvidenceGroundedKnowledgeAssessment | None = None
+    assessment_guidance: list[LearningAssessmentGuidance] = Field(default_factory=list)
+    prerequisites: LearningPlanPrerequisites
+    modules: list[LearningPlanModule]
+    ordered_topic_ids: list[Identifier]
+    learning_sequence: list[LearningPlanStep]
+    estimated_minutes: int = Field(ge=0)
+    missing_information: list[str]
+    limitations: list[str]
 
 
 class TopicDetails(StrictModel):

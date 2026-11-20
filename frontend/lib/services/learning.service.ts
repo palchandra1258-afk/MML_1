@@ -36,10 +36,10 @@ export type Lesson = {
   learning_objectives: LearningObjective[];
   estimated_minutes: number;
   content_version: string;
-  content_source: "curated_static" | "azure_generated";
+  content_source: "curated_static" | "azure_generated" | "gemini_generated" | "mock_generated";
   subject: string;
   learning_level: "beginner" | "intermediate" | "advanced";
-  generation_source: "curated" | "azure_openai";
+  generation_source: "curated" | "azure_openai" | "gemini" | "mock";
   sections: LessonSection[];
 };
 export type LessonGenerationResult = {
@@ -48,18 +48,27 @@ export type LessonGenerationResult = {
   usage: Record<string, number> | null;
   notice: string;
 };
+export type LessonGenerationRequest = {
+  request_id: string;
+  topic: string;
+  subject?: string;
+  level: "beginner" | "intermediate" | "advanced";
+};
 export type StudentAIStatus = {
-  provider: "azure_openai";
+  provider: "azure_openai" | "gemini" | "mock";
   configured: boolean;
+  generation_available: boolean;
+  availability_reason: string | null;
   missing_configuration: string[];
   deployment_name: string | null;
+  model?: string | null;
   timeout_seconds: number;
   max_retries: number;
   voice_deployment_used: false;
 };
 export type TutorAnswer = {
   answer: string;
-  source: "azure_supplementary_explanation";
+  source: "azure_supplementary_explanation" | "gemini_supplementary_explanation" | "mock_test_response";
   usage: Record<string, number> | null;
   notice: string;
 };
@@ -204,7 +213,7 @@ export function createLearningService(client: ApiClient) {
     search: (query: string, signal?: AbortSignal) => client.get<TopicDetails[]>(`/curriculum/search?q=${encodeURIComponent(query)}`, { signal }),
     topic: (topicId: string, signal?: AbortSignal) => client.get<TopicDetails>(`/curriculum/topics/${encodeURIComponent(topicId)}`, { signal }),
     lesson: (lessonId: string, signal?: AbortSignal) => client.get<Lesson>(`/curriculum/lessons/${encodeURIComponent(lessonId)}`, { signal }),
-    generateLesson: (body: { request_id: string; topic: string; subject?: string; level: "beginner" | "intermediate" | "advanced" }, signal?: AbortSignal) => client.post<LessonGenerationResult, typeof body>("/studio/lessons/generate", body, { signal }),
+    generateLesson: (body: LessonGenerationRequest, signal?: AbortSignal) => client.post<LessonGenerationResult, typeof body>("/studio/lessons/generate", body, { signal }),
     aiStatus: (signal?: AbortSignal) => client.get<StudentAIStatus>("/studio/ai/status", { signal }),
     askTutor: (lessonId: string, body: { session_id: string; turn_id: string; message: string; level: "beginner" | "intermediate" | "advanced"; section_id?: string }, signal?: AbortSignal) => client.post<TutorAnswer, typeof body>(`/studio/lessons/${encodeURIComponent(lessonId)}/tutor`, body, { signal }),
     tutorHistory: (lessonId: string, sessionId: string, signal?: AbortSignal) => client.get<TutorMessage[]>(`/studio/lessons/${encodeURIComponent(lessonId)}/tutor/history?session_id=${encodeURIComponent(sessionId)}`, { signal }),

@@ -32,6 +32,10 @@ class APISettings:
     azure_openai_api_version: str = ""
     azure_openai_timeout_seconds: float = 30.0
     azure_openai_max_retries: int = 2
+    ai_provider: str = "azure"
+    gemini_api_key: str = ""
+    gemini_model: str = ""
+    gemini_timeout_seconds: float = 30.0
 
     @classmethod
     def from_environment(cls) -> "APISettings":
@@ -68,6 +72,10 @@ class APISettings:
             azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "").strip(),
             azure_openai_timeout_seconds=_bounded_float("AZURE_OPENAI_TIMEOUT_SECONDS", 30.0, 1.0, 120.0),
             azure_openai_max_retries=_bounded_int("AZURE_OPENAI_MAX_RETRIES", 2, 0, 5),
+            ai_provider=os.getenv("AI_PROVIDER", "azure").strip().casefold(),
+            gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+            gemini_model=os.getenv("GEMINI_MODEL", "").strip(),
+            gemini_timeout_seconds=_bounded_float("GEMINI_TIMEOUT_SECONDS", 30.0, 1.0, 120.0),
         )
 
     def artifact_paths(self) -> dict[str, Path]:

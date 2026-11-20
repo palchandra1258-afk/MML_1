@@ -39,6 +39,7 @@ def test_azure_client_reports_exact_missing_names_without_values():
     client = AzureOpenAIClient(settings())
     status = client.diagnostics()
     assert status["configured"] is False
+    assert status["generation_available"] is False
     assert status["missing_configuration"] == [
         "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_DEPLOYMENT_NAME", "AZURE_OPENAI_API_VERSION",
     ]
@@ -67,6 +68,27 @@ def test_azure_client_uses_key_header_and_structured_json_and_returns_usage():
     assert seen["timeout"] == 4.5
     assert seen["body"]["response_format"] == {"type": "json_object"}
     assert seen["body"]["max_completion_tokens"] == 7000
+
+
+def test_realtime_deployment_is_rejected_before_any_provider_request():
+    calls = []
+
+    def opener(*_args, **_kwargs):
+        calls.append(1)
+        raise AssertionError("Realtime deployment must not receive a chat-completions request")
+
+    client = AzureOpenAIClient(settings(
+        azure_openai_endpoint="https://example.openai.azure.com", azure_openai_api_key="secret",
+        azure_openai_deployment_name="gpt-realtime", azure_openai_api_version="2025-04-01-preview",
+    ), opener=opener)
+    status = client.diagnostics()
+    assert status["configured"] is True
+    assert status["generation_available"] is False
+    assert "does not support lesson text generation" in status["availability_reason"]
+    with pytest.raises(APIError) as exc:
+        client.chat_json(system="sys", user="lesson request")
+    assert exc.value.code == "AI_CONFIGURATION_INVALID"
+    assert calls == []
 
 
 def test_azure_client_bounds_retry_and_returns_safe_rate_limit_error():

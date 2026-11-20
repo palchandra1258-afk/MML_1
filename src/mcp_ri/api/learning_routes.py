@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
-from .dependencies import get_learning_service, get_session
+from .dependencies import get_learning_plan_service, get_learning_service, get_session
 from .learning_schemas import (
     AnswerFeedback,
     AnswerSubmission,
@@ -37,8 +37,11 @@ from .learning_schemas import (
     TutorResponse,
     TutorHistoryItem,
     AzureAIStatus,
+    LearningPlanData,
+    LearningPlanRequest,
 )
 from .learning_service import LearningService
+from .learning_plan_service import LearningPlanService
 from .schemas import Envelope
 
 
@@ -107,6 +110,20 @@ def get_lesson_practice(
     service: LearningService = Depends(get_learning_service),
 ) -> dict[str, Any]:
     return _envelope(request, service.practice(lesson_id, session))
+
+
+@learning_router.post(
+    "/studio/learning-plans/preview",
+    response_model=Envelope[LearningPlanData],
+    operation_id="previewStudentLearningPlan",
+)
+def preview_student_learning_plan(
+    body: LearningPlanRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+    service: LearningPlanService = Depends(get_learning_plan_service),
+) -> dict[str, Any]:
+    return _envelope(request, service.preview(session, body))
 
 
 @learning_router.get("/studio/ai/status", response_model=Envelope[AzureAIStatus], operation_id="getStudentAIStatus")

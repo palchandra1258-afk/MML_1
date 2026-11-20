@@ -22,6 +22,7 @@ from mcp_ri.learner_state.state_builder import LearnerStateAccumulator
 
 from .errors import APIError
 from .azure_openai import AzureOpenAIClient
+from .text_generation import select_text_generator
 from .learning_schemas import (
     AnswerFeedback,
     CurriculumCatalog,
@@ -128,6 +129,8 @@ class LearningService:
     def __init__(self, settings: APISettings | None = None):
         self.settings = settings or APISettings.from_environment()
         self.azure = AzureOpenAIClient(self.settings)
+        self.provider = select_text_generator(self.settings)
+        self.generator = self.azure if self.provider.name == "azure" else self.provider.client
 
     def _profile_row(self, session: Session) -> StudentStudioProfileRow:
         profile = session.get(StudentStudioProfileRow, PROFILE_ID)
@@ -199,7 +202,7 @@ class LearningService:
         return generated.lesson_data
 
     def ai_status(self) -> dict[str, Any]:
-        return self.azure.diagnostics()
+        return self.generator.diagnostics()
 
     def generate_lesson(self, session: Session, body: LessonGenerationRequest) -> dict[str, Any]:
         request_hash = hashlib.sha256(json.dumps(body.model_dump(exclude={"request_id"}), sort_keys=True).encode()).hexdigest()
@@ -220,7 +223,7 @@ class LearningService:
             return LessonGenerationResult(
                 lesson=curated,
                 question_count=count,
-                notice="A curated lesson already covers this topic; no Azure request was made.",
+                notice="A curated lesson already covers this topic; no AI provider request was made.",
             ).model_dump(mode="json")
 
         system = (
@@ -236,28 +239,31 @@ class LearningService:
         )
         user = json.dumps({"topic": body.topic.strip(), "subject": body.subject.strip(), "learning_level": body.level,
                            "requirements": "Include objectives, an introduction, detailed concept sections, formulas/derivations where relevant, examples, and five practice questions."})
-        result = self.azure.chat_json(system=system, user=user, max_tokens=6500)
+        result = self.generator.chat_json(system=system, user=user, max_tokens=6500)
+        provider_name = self.provider.name
         try:
             draft = GeneratedLessonDraft.model_validate(json.loads(result.content))
         except Exception as exc:
-            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned lesson content that failed validation.") from exc
+            raise APIError(502, "AI_CONTENT_INVALID", "The configured provider returned lesson content that failed validation.") from exc
         if len({section.section_id for section in draft.sections}) != len(draft.sections):
-            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned duplicate lesson section IDs.")
+            raise APIError(502, "AI_CONTENT_INVALID", "The configured provider returned duplicate lesson section IDs.")
         objective_ids = {objective.objective_id for objective in draft.learning_objectives}
         if len(objective_ids) != len(draft.learning_objectives):
-            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned duplicate learning objective IDs.")
+            raise APIError(502, "AI_CONTENT_INVALID", "The configured provider returned duplicate learning objective IDs.")
 
         token = uuid.uuid4().hex
         topic_id = f"ai-topic-{token}"
         lesson_id = f"ai-lesson-{token}"
         course_id = f"ai-course-{hashlib.sha256((body.subject + body.topic).encode()).hexdigest()[:12]}"
-        content_version = f"azure-{token[:12]}"
+        content_version = f"{provider_name}-{token[:12]}"
+        generated_source = {"azure": "azure_openai", "gemini": "gemini", "mock": "mock"}[provider_name]
+        content_source = {"azure": "azure_generated", "gemini": "gemini_generated", "mock": "mock_generated"}[provider_name]
         lesson = LessonContent(
             lesson_id=lesson_id, topic_id=topic_id, course_id=course_id, title=draft.title,
             introduction=draft.introduction, learning_objectives=draft.learning_objectives,
             estimated_minutes=draft.estimated_minutes, content_version=content_version,
-            content_source="azure_generated", subject=body.subject.strip(), learning_level=body.level,
-            generation_source="azure_openai", sections=draft.sections,
+            content_source=content_source, subject=body.subject.strip(), learning_level=body.level,
+            generation_source=generated_source, sections=draft.sections,
         )
         questions = []
         for draft_question in draft.questions:
@@ -267,9 +273,9 @@ class LearningService:
                 if (draft_question.question_type not in {"single_choice", "multiple_choice"}
                         or len(option_ids) != len(draft_question.options) or not correct or not correct <= option_ids
                         or (draft_question.question_type == "single_choice" and len(correct) != 1)):
-                    raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned an inconsistent choice question.")
+                    raise APIError(502, "AI_CONTENT_INVALID", "The configured provider returned an inconsistent choice question.")
             elif draft_question.question_type != "numeric" or draft_question.options:
-                raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned an inconsistent numeric question.")
+                raise APIError(502, "AI_CONTENT_INVALID", "The configured provider returned an inconsistent numeric question.")
             questions.append(QuestionRecord(
                 question_id=f"ai-question-{uuid.uuid4().hex}", lesson_id=lesson_id, topic_id=topic_id,
                 objective_id=draft.learning_objectives[len(questions) % len(draft.learning_objectives)].objective_id,
@@ -287,7 +293,9 @@ class LearningService:
         )
         session.add(row)
         session.flush()
-        return self._generation_result(row, notice="AI-generated lesson saved. Review it as generated learning material.")
+        notice = ("Mock lesson saved for testing; this content was not AI generated." if provider_name == "mock"
+                  else "AI-generated lesson saved. Review it as generated learning material.")
+        return self._generation_result(row, notice=notice)
 
     @staticmethod
     def _generation_result(row: StudentGeneratedLessonRow, *, notice: str) -> dict[str, Any]:
@@ -314,7 +322,7 @@ class LearningService:
         if prior is not None:
             if prior.request_hash != request_hash:
                 raise APIError(409, "TUTOR_TURN_ID_REUSED", "This tutor turn ID was already used with different inputs.")
-            return TutorResponse(answer=prior.content, source="azure_supplementary_explanation",
+            return TutorResponse(answer=prior.content, source=self._tutor_source(),
                                  usage=prior.usage_data,
                                  notice="Supplementary explanation generated for this lesson; review it critically.").model_dump(mode="json")
         recent = list(session.scalars(select(StudentTutorInteractionRow).where(
@@ -333,13 +341,13 @@ class LearningService:
         user = json.dumps({"learning_level": body.level, "lesson": lesson_context,
                            "current_section": None if section is None else section.model_dump(mode="json"),
                            "conversation": history, "student_question": body.message.strip()})
-        result = self.azure.chat_json(system=system, user=user, max_tokens=1200)
+        result = self.generator.chat_json(system=system, user=user, max_tokens=1200)
         try:
             answer = json.loads(result.content)["answer"]
             if not isinstance(answer, str) or not answer.strip() or len(answer) > 5000:
                 raise ValueError("invalid answer")
         except (ValueError, TypeError, KeyError, json.JSONDecodeError):
-            raise APIError(502, "AI_CONTENT_INVALID", "Azure OpenAI returned an invalid tutor response.") from None
+            raise APIError(502, "AI_CONTENT_INVALID", "The configured provider returned an invalid tutor response.") from None
         now = utc_now()
         assistant_time = (datetime.fromisoformat(now) + timedelta(microseconds=1)).isoformat()
         session.add_all([
@@ -351,8 +359,12 @@ class LearningService:
                                        role="assistant", content=answer.strip(), usage_data=result.usage, created_at=assistant_time),
         ])
         session.flush()
-        return TutorResponse(answer=answer.strip(), source="azure_supplementary_explanation",
+        return TutorResponse(answer=answer.strip(), source=self._tutor_source(),
                              usage=result.usage, notice="Supplementary explanation generated for this lesson; review it critically.").model_dump(mode="json")
+
+    def _tutor_source(self) -> str:
+        return {"azure": "azure_supplementary_explanation", "gemini": "gemini_supplementary_explanation",
+                "mock": "mock_test_response"}[self.provider.name]
 
     def tutor_history(self, session: Session, lesson_id: str, session_id: str) -> list[dict[str, Any]]:
         study_session = session.get(StudentLearningSessionRow, session_id)

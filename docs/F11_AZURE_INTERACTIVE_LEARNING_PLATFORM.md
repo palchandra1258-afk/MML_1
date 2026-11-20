@@ -29,7 +29,7 @@ The Azure deployment is a text-generation deployment. `gpt-realtime` is not used
 
 ## Configuration
 
-Set these in the backend process environment or a backend-only secret store:
+Set these in the backend process environment or a backend-only secret store. For local development, the repository root `.env.backend` is the supported file location. It is intentionally separate from `frontend/.env.local`; the backend reads process environment variables and does not load frontend configuration files.
 
 | Variable | Purpose |
 |---|---|
@@ -42,7 +42,41 @@ Set these in the backend process environment or a backend-only secret store:
 
 `GET /api/v1/studio/ai/status` reports configuration readiness. Generation and tutor calls return `AI_NOT_CONFIGURED` and list the exact missing variables when required settings are absent. They do not return fabricated content. The REST client uses bounded `max_completion_tokens`, a JSON response format, server-side Pydantic validation, bounded timeout/retry handling, safe provider errors, and token-usage metadata when Azure provides it. Authentication failures, throttling, provider errors, invalid responses, and timeouts have distinct safe error codes. Incoming AI calls are limited to 12 per minute per client IP in one process; this is a local cost guard, not a distributed quota.
 
-No Azure network call was made during this implementation. Usage counts are retained with generated lesson records and returned with tutor responses, but no currency estimate is shown because the configured model/pricing was not supplied.
+The tracked `.env.backend.example` contains blank values only. Create a private local copy and fill it with a local editor; do not paste credentials into shell commands, frontend variables, source files, or chat:
+
+```bash
+cd /home/mml_07/Desktop/MML
+install -m 600 .env.backend.example .env.backend
+nano .env.backend
+```
+
+Use shell-compatible quoted assignments, for example `AZURE_OPENAI_API_KEY='value'`. Then load the file only into the backend shell and start the server:
+
+```bash
+set -a
+. ./.env.backend
+set +a
+PYTHONPATH=src .venv-api/bin/uvicorn mcp_ri.api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+The root `.gitignore` excludes `.env` and `.env.*` files and allows only the blank `.env.backend.example` template. Frontend settings stay in `frontend/.env.local`; never put Azure values in a `NEXT_PUBLIC_*` variable. The backend settings and REST client are the only application code that read Azure credentials.
+
+Check configuration readiness without making an Azure request:
+
+```bash
+curl -fsS http://127.0.0.1:8000/api/v1/studio/ai/status
+```
+
+This reports whether required settings are present and the deployment name; it does not reveal the key or endpoint and does not prove provider connectivity. The prepared connection checker defaults to no network request. Its explicit connectivity mode sends one small chat-completions request and may incur Azure usage charges:
+
+```bash
+PYTHONPATH=src .venv-api/bin/python scripts/api/check_azure_connection.py
+PYTHONPATH=src .venv-api/bin/python scripts/api/check_azure_connection.py --send-request
+```
+
+The first command validates local configuration only. The second is opt-in and prints only a success result or safe error code/message; it withholds credentials, endpoint, prompt, response content, and raw provider exceptions. No live Azure request is part of setup or migration verification.
+
+Usage counts are retained with generated lesson records and returned with tutor responses, but no currency estimate is shown because the configured model/pricing was not supplied.
 
 ## Lesson generation and student workflow
 
@@ -60,11 +94,42 @@ The tutor receives the saved lesson, current section, requested level, and up to
 
 Migration `0005_azure_interactive_learning` is additive and downgrades by dropping only the two new tables. Upgrade, downgrade, and re-upgrade were tested on a temporary SQLite database. No migration was run against the configured application database during F11.
 
-To make the new tables available, review the configured database and then run:
+The migration chain is linear from `0001_initial` through `0005_azure_interactive_learning`. Migration 0005 creates `studio_generated_lessons` and `studio_tutor_interactions` and references the existing `studio_learning_sessions` table. It does not rewrite or backfill existing F9/F10.1 rows. The local configured database inspected on 20 November 2026 was at revision `0004_f10_1_learning_evidence`, so it lacks the two 0005 tables. Startup migration is disabled by default.
+
+**Do not run the following until the configured database has been reviewed and a consistent backup has been verified.** Stop the backend first. For the default database, a SQLite backup can be made without overwriting an existing backup:
+
+```bash
+umask 077
+.venv-api/bin/python - <<'PY'
+from pathlib import Path
+import sqlite3
+
+source_path = Path("data/application/mcp_ri.sqlite3")
+backup_path = Path("data/application/mcp_ri.pre-0005.sqlite3")
+if backup_path.exists():
+    raise SystemExit(f"Refusing to overwrite existing backup: {backup_path}")
+source = sqlite3.connect(source_path)
+backup = sqlite3.connect(backup_path)
+try:
+    source.backup(backup)
+    result = backup.execute("PRAGMA integrity_check").fetchone()[0]
+    if result != "ok":
+        raise SystemExit(f"Backup integrity check failed: {result}")
+finally:
+    backup.close()
+    source.close()
+backup_path.chmod(0o600)
+print(f"Verified SQLite backup: {backup_path}")
+PY
+```
+
+After the backup and migration plan are reviewed and approved, apply the migration explicitly:
 
 ```bash
 PYTHONPATH=src .venv-api/bin/python scripts/api/migrate_database.py
 ```
+
+Then verify the Alembic revision, that both new tables exist, and `PRAGMA integrity_check` before restarting the API. The 0005 downgrade drops `studio_generated_lessons` and `studio_tutor_interactions`; after those tables contain data, a downgrade is not data-preserving. Preserve the backup as the rollback path or forward-fix the schema. Restoring a pre-migration backup also discards all database writes made after that backup, so stop the service and account for those writes before restore.
 
 API startup no longer creates or migrates tables by default. `MCP_RI_AUTO_MIGRATE=true` is an explicit opt-in. Unit/API test apps create their own temporary schemas. The existing fixed `studio-local-demo` profile remains unauthenticated and shared. It is not multi-user isolation or suitable for public deployment.
 

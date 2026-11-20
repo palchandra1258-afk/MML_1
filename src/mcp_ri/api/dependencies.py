@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .persistence import Database
 from .services import ArtifactService, ResearchService, TrajectoryService
 from .learning_service import LearningService
+from .learning_plan_service import LearningPlanService
 
 
 def get_database(request: Request) -> Database:
@@ -38,3 +39,7 @@ def get_trajectory_service(request: Request) -> TrajectoryService:
 
 def get_learning_service(request: Request) -> LearningService:
     return request.app.state.learning_service
+
+
+def get_learning_plan_service(request: Request) -> LearningPlanService:
+    return request.app.state.learning_plan_service

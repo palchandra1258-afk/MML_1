@@ -9,6 +9,12 @@ __pycache__/
 .venv-api/
 venv/
 
+# Backend-local environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.backend.example
+
 # Large downloaded and generated datasets (store separately)
 data/raw/ednet/ednet-kt1.zip
 data/processed/ednet/ednet_kt1_features.csv.gz
